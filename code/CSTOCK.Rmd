@@ -30,12 +30,11 @@ plot(pressure)
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
 # Libraries=============================
-```{r message=FALSE, warning=FALSE}
+```{r, warning=FALSE}
 library(xlsx)
 library(readxl)
 library(psych)
 library(dplyr)
-library(ggplot2)
 library(factoextra)
 library(FactoMineR)
 library(ade4)
@@ -62,7 +61,6 @@ library(cowplot)
 library(gmt)
 library(geosphere)
 library(rlang)
-library(plyr)
 library(ggplot2)
 library(nlme)
 library(lme4) 
@@ -81,13 +79,13 @@ library(visreg)
 ```{r data acquire}
 workbook<- "D:/R/CSTOCK1/data/CSTOCK.xlsx"
 cstock<-read.xlsx(workbook, 1, colClasses="character")# colClasses all characters to retrieve correct data without losing and replacing by NAs.
-names(cstock) 
+#names(cstock) 
 
 #cstock<-read.xlsx(workbook, 1,colClasses=c("integer","integer", "integer","numeric", "integer", "numeric"))
-str(cstock)
+#str(cstock)
 ##transform data from 'chr' to proper format: 'num', 'int'
 #cstock$ID<-as.vector(cstock$ID)# as 'ID' has a 'Y-1' format reformatting it to a factor returns NA, leave as is
-cstock$plot<-as.factor(cstock$plot)
+cstock$pl<-as.factor(cstock$pl)
 cstock$type<-as.factor(cstock$type)
 cstock$mxdpt<-as.numeric(cstock$mxdpt)
 cstock$lyr<-as.integer(cstock$lyr)
@@ -100,17 +98,36 @@ cstock$sl<-as.numeric(cstock$sl)
 ```
 
 
-```{r}
+```{r echo}
 #pivot_wider creates columns of same row number with values from given column and names of new column by factor's level
 cstock%>%
-  select(plot, mxdpt, type)%>%#select a given columns
-  group_by(plot, type)%>%#grouping by given factors
+  filter(vars(mxdpt), all_vars(!is.na(.)))%>%
+  select(pl, type, mxdpt)%>%#select a given columns
+  group_by(pl, type)%>%#grouping by given factors
   summarise(mxdpt=mean(mxdpt, na.rm=T))%>%
-  pivot_wider(names_from = type, values_from = mxdpt)%>%
-  ggplot(aes(litter, soil))+
-  geom_point()
+  pivot_wider(names_from = type, values_from = mxdpt, values_fn = list)ggplot(aes(litter, soil))+
+  geom_point() 
  
 ```
+```{r}
+set.seed(123)
+n <- 895
+
+cst <- data.frame(
+  ID = seq(n),
+  plot = factor(sample(paste0("D", 1:42), n, replace = TRUE)),
+  type = factor(sample(c("litter", "soil"), n, replace = TRUE)),
+  mxdpt = runif(n, 5, 7)
+)
+
+cst %>% 
+  group_by(plot, type) %>% 
+  summarise(mxdpt = mean(mxdpt, na.rm = TRUE)) %>% 
+  pivot_wider(names_from = type, values_from = mxdpt) %>% 
+  ggplot(aes(litter, soil)) +
+  geom_point()
+```
+
 `
 
 
