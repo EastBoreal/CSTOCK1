@@ -81,7 +81,7 @@ library(visreg)
 ```{r data acquire}
 workbook<- "D:/R/CSTOCK/data/CSTOCK.xlsx"
 cstock<-read.xlsx(workbook, 1, colClasses="character")# colClasses all characters to retrieve correct data without losing and replacing by NAs.
-names(cstock)
+names(cstock) 
 
 #cstock<-read.xlsx(workbook, 1,colClasses=c("integer","integer", "integer","numeric", "integer", "numeric"))
 str(cstock)
