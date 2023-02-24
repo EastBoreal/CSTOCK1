@@ -98,36 +98,39 @@ cstock$sl<-as.numeric(cstock$sl)
 ```
 
 
-```{r echo}
+```{r}
 #pivot_wider creates columns of same row number with values from given column and names of new column by factor's level
+
+library(ggplot2)
+library(dplyr, warn=FALSE)
+library(tidyr)
 cstock%>%
-  filter(vars(mxdpt), all_vars(!is.na(.)))%>%
+  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
   select(pl, type, mxdpt)%>%#select a given columns
   group_by(pl, type)%>%#grouping by given factors
-  summarise(mxdpt=mean(mxdpt, na.rm=T))%>%
-  pivot_wider(names_from = type, values_from = mxdpt, values_fn = list)ggplot(aes(litter, soil))+
+  summarise(mxdpt=mean(mxdpt, na.rm=T))%>%#na.rm is not neede if filter in the beginning
+  pivot_wider(names_from = type, values_from = mxdpt)%>%
+  ggplot(aes(litter, soil))+
   geom_point() 
  
 ```
 ```{r}
-set.seed(123)
-n <- 895
-
-cst <- data.frame(
-  ID = seq(n),
-  plot = factor(sample(paste0("D", 1:42), n, replace = TRUE)),
-  type = factor(sample(c("litter", "soil"), n, replace = TRUE)),
-  mxdpt = runif(n, 5, 7)
-)
-
-cst %>% 
-  group_by(plot, type) %>% 
-  summarise(mxdpt = mean(mxdpt, na.rm = TRUE)) %>% 
-  pivot_wider(names_from = type, values_from = mxdpt) %>% 
-  ggplot(aes(litter, soil)) +
-  geom_point()
+cstock%>%
+  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
+  select(pl, type, mxdpt, e, n)%>%#select a given columns
+  group_by(pl, type)%>%#grouping by given factors
+  summarise(mxdpt=mean(mxdpt, na.rm=T))%>%#na.rm is not neede if filter in the beginning
+  pivot_wider(names_from = type, values_from = mxdpt)%>%
+  ggplot(aes(litter, soil))+
+  geom_point() 
+```
+```{r}
+cstock%>%
+  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
+  select(pl, type, mxdpt, e, n)%>%#select a given columns
+  group_by(pl, type)%>%#grouping by given factors
+  summarise(mxdpt=mean(mxdpt, na.rm=T))
 ```
 
-`
 
 
