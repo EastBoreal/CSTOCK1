@@ -79,14 +79,14 @@ library(visreg)
 ```
 
 ```{r data acquire}
-workbook<- "D:/R/CSTOCK/data/CSTOCK.xlsx"
+workbook<- "D:/R/CSTOCK1/data/CSTOCK.xlsx"
 cstock<-read.xlsx(workbook, 1, colClasses="character")# colClasses all characters to retrieve correct data without losing and replacing by NAs.
 names(cstock) 
 
 #cstock<-read.xlsx(workbook, 1,colClasses=c("integer","integer", "integer","numeric", "integer", "numeric"))
 str(cstock)
 ##transform data from 'chr' to proper format: 'num', 'int'
-cstock$ID<-as.vector(cstock$ID)
+#cstock$ID<-as.vector(cstock$ID)# as 'ID' has a 'Y-1' format reformatting it to a factor returns NA, leave as is
 cstock$plot<-as.factor(cstock$plot)
 cstock$type<-as.factor(cstock$type)
 cstock$mxdpt<-as.numeric(cstock$mxdpt)
@@ -97,51 +97,20 @@ cstock$e<-as.numeric(cstock$e)
 cstock$n<-as.numeric(cstock$n)
 cstock$TPG<-as.factor(cstock$TPG)
 cstock$sl<-as.numeric(cstock$sl)
-cstock[sapply(cstock, is.character)] <- lapply(cstock[sapply(cstock, is.character)], as.factor)# transform all characters to factors
-
-cstock%>%
-  #filter(day !="0"& day !="218")%>%  
-  group_by(plot, type)%>%
-  #identify_outliers(rem)
-  #get_summary_stats(mxdpt, type="mean_se")
 ```
+
+
 ```{r}
-rename(cstock, plot = plt)
-arrange(cstock, plot, type)
-
+#pivot_wider creates columns of same row number with values from given column and names of new column by factor's level
 cstock%>%
-  #group_by(plot)%>%
-  select(plot, mxdpt, type)
-
-
-md%>%
-  #group_by(plot)%>%
-  mutate(smx= mean(mxdpt, ifelse(type=="soil",mean,NA))
-
+  select(plot, mxdpt, type)%>%#select a given columns
+  group_by(plot, type)%>%#grouping by given factors
+  summarise(mxdpt=mean(mxdpt, na.rm=T))%>%
+  pivot_wider(names_from = type, values_from = mxdpt)%>%
+  ggplot(aes(litter, soil))+
+  geom_point()
  
-  mutate(soilmx=mean(mxdpt, na.rm=T,
-         littermx=mean(mxdpt, na.rm=T)
-         )
-  
-md%>%
-  arrange(factor(plot))%>%
-  group_by(plot)%>%
-  filter(type=="soil")%>%
-  ggplot(aes(x=plot, y=mxdpt))+stat_summary(fun = mean, geom = 'bar', aes(fill= plot), colour='black', width = 0.3, position= position_dodge(0.6))+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.3,position= position_dodge(0.6))#+labs( x="Площадки", y="Эмиссия, г С м-2 сут-1")+guides(color=guide_legend(title="")) +theme_classic()
-#plothist2
-  
-  mutate(smx=mean(mxdpt))
-
-
-filter(, type==soil))
-  #filter(day !="0"& day !="218")  
-  
-  #identify_outliers(rem)
-  cstock%>%
-    filter(type=="litter")%>%
-    ggplot(aes(x=fn40, y=mxdpt, group_by(plot), geom_point()))
-  # +scale_x_discrete(labels=c("март", "май", "июнь", "июль", "август", "сентябрь", "октябрь"))+labs( x="Дата", y="Эмиссия, г С м-2 сут-1")+guides(color=guide_legend(title="")) +theme_classic()
-plot1
 ```
+`
 
 
