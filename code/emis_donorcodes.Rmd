@@ -1,0 +1,864 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r Libraries, warning=FALSE, include=FALSE}
+library(xlsx)
+library(readxl)
+library(ggplot.multistats)
+library(ggplot2)
+library(psych)
+library(pastecs)
+library(gcookbook)
+library(wesanderson)
+library(PMCMR)
+library(lme4)
+library(MASS)
+library(nlme)
+library(dplyr)
+library(multcomp)
+require(multcomp)
+library(emmeans)
+library(factoextra)
+library(FactoMineR)
+library(ade4)
+library(car)
+library(corrplot)
+library(graphics)
+library(pvclust)
+library(doBy)
+library(ggpubr)
+library(scales)
+require(ggthemes)
+require(ggpmisc)
+library(beanplot)
+library(lubridate)
+library(devtools)
+library(earth) 
+library(nlme)
+library(ggbiplot)
+library(devtools)                         
+library(dunn.test)
+```
+
+```{r}
+setwd("D:/Rstat/Respiration")
+workbook <- "D:/Rstat/Respiration/resp.xlsx"
+em1 <- read_xlsx(workbook, 1)
+workbook <- "F:/ЭМИССИЯ 2018_2021/статья эмиссия.xlsx"
+em2 <- read_xlsx(workbook, 1)
+workbook <- "F:/ЭМИССИЯ 2018_2021/статья эмиссия.xlsx"
+em3 <- read_xlsx(workbook, 3)
+workbook <- "F:/ЭМИССИЯ 2018_2021/статья эмиссия.xlsx"
+em4 <- read_xlsx(workbook, 4)
+workbook <- "F:/ЭМИССИЯ 2018_2021/статья эмиссия.xlsx"
+em7_sezon <- read_xlsx(workbook, 8)
+workbook <- "F:/ЭМИССИЯ 2018_2021/статья эмиссия.xlsx"
+t_soil <- read_xlsx(workbook, 9)
+workbook <- "F:/ЭМИССИЯ 2018_2021/статья эмиссия.xlsx"
+reg <- read_xlsx(workbook, 10)
+```
+###Данные в фактор группой
+```{r Текстовые в фактор скопом}
+em1[sapply(em1, is.character)] <- lapply(em1[sapply(em1, is.character)], as.factor)
+```
+
+
+### Сортировка  и трансофрмация с "dplyr" ###
+
+Используем функцию filter из пакета dplyr Сортируем сначала по годам потом по месяцам.
+
+```{r Функции к отфильтрованным данным}
+
+plot.design(em1 %>% # в данном случае мы создали массив, но также можно подавать на функцию 
+  filter(year==2020, month=="aug"))
+```
+
+Lossl%>%
+  filter(day !="0"& day !="218")%>%  
+  group_by(species,treat, dayn)%>%
+  #identify_outliers(rem)
+  get_summary_stats(rem, type="mean_se")%>% 
+  write.xlsx("RemSum.xlsx")
+
+
+```{r Проверка низких показаний 2020 года}
+summary(em1 %>%
+  filter(year == 2020, month== "aug")%>%
+  group_by(pl, month)) 
+  #get_summary_stats(CO2, type="mean_se"))
+em1 %>% 
+  group_by(month) %>%
+  summarize(avgCO = median(CO2))
+ 
+
+```
+
+
+```{r}
+workbook <- "F:/ЭМИССИЯ 2018_2021/статья эмиссия.xlsx"
+em2 <- read_xlsx(workbook, 1)
+kruskal.test(CO2~pl, data=em1)
+dunn.test::dunn.test(x= em1$CO2, g=em1$pl, method="bonferroni")
+```
+
+```{r}
+shapiro.test(em1$`32M_2018`)
+shapiro.test(em1$`37P_2018`)
+shapiro.test(em1$`38L_2018`)
+shapiro.test(em1$`38K_2018`)
+```
+
+
+```{r}
+em1$pl<-as.factor(em1$pl)
+em1$year<-as.factor(em1$year)
+em1$month<-as.factor(em1$month)
+em_2018<-subset(em2, year=="2018")
+fit_2018<-aov(CO2~pl, data= em_2018)
+summary(fit_2018)
+TukeyHSD(fit_2018)
+```
+
+```{r}
+shapiro.test(em1$`32M_2019`)
+shapiro.test(em1$`37P_2019`)
+shapiro.test(em1$`38L_2019`)
+shapiro.test(em1$`38K_2019`)
+```
+
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$data<-as.factor(em2$year)
+em2$month<-as.factor(em2$month)
+## Данн тест по годам через диплаир с группировкой >
+dunn_results <- em1 %>% # подаём на тест весь массив
+  group_by(year) %>% # далее группируем его по годам
+  summarise(p.value = dunn.test(CO2, pl, method="bonferroni")$P)# выводим саммари с коэффициентами p
+## Данн тест за 2019й через диплаир>
+dunn_results <- em1 %>% # подаём на тест весь массив
+  filter (year==2019) %>% # выбираем только 2019й
+  summarise(p.value = dunn.test(CO2, pl, method="bonferroni")$P)# выводим саммари с коэффициентами p
+
+em_2019<-subset(em2, data=="2019")
+kruskal.test(CO2~pl, data=em_2019)
+dunn.test::dunn.test(data=filter(em1, year =="2019"), x=CO2, g=pl, method="bonferroni")
+```
+
+```{r}
+shapiro.test(em1$`32M_2020`)
+shapiro.test(em1$`37P_2020`)
+shapiro.test(em1$`38L_2020`)
+shapiro.test(em1$`38K_2020`)
+```
+
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$data<-as.factor(em2$year)
+em2$month<-as.factor(em2$month)
+em_2020<-subset(em2, data=="2020")
+kruskal.test(CO2~pl, data=em_2020)
+dunn.test::dunn.test(x= em_2020$CO2, g=em_2020$pl, method="bonferroni")
+```
+
+```{r}
+shapiro.test(em1$`32M_2021`)
+shapiro.test(em1$`37P_2021`)
+shapiro.test(em1$`38L_2021`)
+shapiro.test(em1$`38K_2021`)
+```
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$data<-as.factor(em2$year)
+em2$month<-as.factor(em2$month)
+em_2021<-subset(em2, data=="2021")
+kruskal.test(CO2~pl, data=em_2021)
+dunn.test::dunn.test(x= em_2021$CO2, g=em_2021$pl, method="bonferroni")
+```
+
+```{r}
+shapiro.test(em1$`32M_2022`)
+shapiro.test(em1$`37P_2022`)
+shapiro.test(em1$`38L_2022`)
+shapiro.test(em1$`38K_2022`)
+```
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$data<-as.factor(em2$year)
+em2$month<-as.factor(em2$month)
+em_2022<-subset(em2, data=="2022")
+kruskal.test(CO2~pl, data=em_2022)
+dunn.test::dunn.test(x= em_2022$CO2, g=em_2022$pl, method="bonferroni")
+```
+
+
+```{r}
+shapiro.test(em3$march_2020)
+shapiro.test(em3$march_2022)
+shapiro.test(em3$may_2018)
+shapiro.test(em3$may_2020)
+shapiro.test(em3$may_2021)
+shapiro.test(em3$may_2022)
+shapiro.test(em3$jun_2019)
+shapiro.test(em3$jun_2020)
+shapiro.test(em3$jun_2021)
+shapiro.test(em3$jun_2022)
+shapiro.test(em3$jul_2019)
+shapiro.test(em3$jul_2021)
+shapiro.test(em3$aug_2018)
+shapiro.test(em3$aug_2019)
+shapiro.test(em3$aug_2020)
+shapiro.test(em3$aug_2021)
+shapiro.test(em3$sep_2018)
+shapiro.test(em3$sep_2019)
+shapiro.test(em3$sep_2020)
+shapiro.test(em3$sep_2021)
+shapiro.test(em3$oct_2021)
+```
+
+```{r}
+summary(em3)
+```
+
+
+```{r}
+describe(em1)
+```
+
+```{r}
+describe(em3)
+```
+
+
+```{r}
+em2$month<-as.factor(em2$month)
+em_march<-subset(em2, month=="march")
+kruskal.test(CO2~year, data=em_march)
+dunn.test::dunn.test(x= em_march$CO2, g=em_march$year, method="bonferroni")
+```
+
+```{r}
+em2$month<-as.factor(em2$month)
+em_may<-subset(em2, month=="may")
+kruskal.test(CO2~year, data=em_may)
+dunn.test::dunn.test(x= em_may$CO2, g=em_may$year, method="bonferroni")
+```
+
+```{r}
+em2$month<-as.factor(em2$month)
+em_jun<-subset(em2, month=="jun")
+kruskal.test(CO2~year, data=em_jun)
+dunn.test::dunn.test(x= em_jun$CO2, g=em_jun$year, method="bonferroni")
+```
+
+
+```{r}
+em2$month<-as.factor(em2$month)
+em_jul<-subset(em2, month=="jul")
+kruskal.test(CO2~year, data=em_jul)
+dunn.test::dunn.test(x= em_jul$CO2, g=em_jul$year, method="bonferroni")
+```
+
+
+
+
+```{r}
+em2$month<-as.factor(em2$month)
+em_aug<-subset(em2, month=="aug")
+kruskal.test(CO2~year, data=em_aug)
+dunn.test::dunn.test(x= em_aug$CO2, g=em_aug$year, method="bonferroni")
+```
+
+```{r}
+em2$month<-as.factor(em2$month)
+em_sep<-subset(em2, month=="sep")
+kruskal.test(CO2~year, data=em_sep)
+dunn.test::dunn.test(x= em_sep$CO2, g=em_sep$year, method="bonferroni")
+```
+
+#температура различия по площадкам
+```{r}
+shapiro.test(t_soil$ts_march)
+shapiro.test(t_soil$ts_may)
+shapiro.test(t_soil$ts_jun)
+shapiro.test(t_soil$ts_jul)
+shapiro.test(t_soil$ts_aug)
+shapiro.test(t_soil$ts_sep)
+shapiro.test(t_soil$ts_oct)
+```
+
+#различия общие по температуре по площадкам
+```{r}
+em2$pl<-as.factor(em2$pl)
+kruskal.test(ts~pl, data=em2)
+dunn.test::dunn.test(x= em2$ts, g=em2$pl, method="bonferroni")
+```
+
+#различия по месяцам на каждой площадке
+#март
+```{r}
+em2$month<-as.factor(em2$month)
+ts_march<-subset(em2, month=="march")
+kruskal.test(ts~pl, data=ts_march)
+dunn.test::dunn.test(x= ts_march$ts, g=ts_march$pl, method="bonferroni")
+```
+
+#май
+```{r}
+em2$month<-as.factor(em2$month)
+ts_may<-subset(em2, month=="may")
+kruskal.test(ts~pl, data=ts_may)
+dunn.test::dunn.test(x= ts_may$ts, g=ts_may$pl, method="bonferroni")
+```
+
+#июнь
+```{r}
+em2$month<-as.factor(em2$month)
+ts_jun<-subset(em2, month=="jun")
+kruskal.test(ts~pl, data=ts_jun)
+dunn.test::dunn.test(x= ts_jun$ts, g=ts_jun$pl, method="bonferroni")
+```
+
+#июль
+```{r}
+em2$month<-as.factor(em2$month)
+ts_jul<-subset(em2, month=="jul")
+kruskal.test(ts~pl, data=ts_jul)
+dunn.test::dunn.test(x= ts_jul$ts, g=ts_jul$pl, method="bonferroni")
+```
+
+#август
+```{r}
+em2$month<-as.factor(em2$month)
+ts_aug<-subset(em2, month=="aug")
+kruskal.test(ts~pl, data=ts_aug)
+dunn.test::dunn.test(x= ts_aug$ts, g=ts_aug$pl, method="bonferroni")
+```
+
+#СЕНТЯБРЬ
+```{r}
+em2$month<-as.factor(em2$month)
+ts_sep<-subset(em2, month=="sep")
+kruskal.test(ts~pl, data=ts_sep)
+dunn.test::dunn.test(x= ts_sep$ts, g=ts_sep$pl, method="bonferroni")
+```
+
+#октябрь
+
+```{r}
+em2$month<-as.factor(em2$month)
+ts_oct<-subset(em2, month=="oct")
+kruskal.test(ts~pl, data=ts_oct)
+dunn.test::dunn.test(x= ts_oct$ts, g=ts_oct$pl, method="bonferroni")
+```
+
+
+
+
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$year<-as.factor(em2$year)
+em2$month<-factor(em2$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+
+plot1<-ggplot(data = em2, aes(x=month, y=CO2, color=year, group= year))+stat_summary(fun = mean, geom = 'point', pch=15)+stat_summary(fun = mean, geom ='line')+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)+scale_x_discrete(labels=c("март", "май", "июнь", "июль", "август", "сентябрь", "октябрь"))+labs( x="Дата", y="Эмиссия, г С м-2 сут-1")+guides(color=guide_legend(title="")) +theme_classic()
+plot1
+```
+
+```{r}
+ggsave("F:/ЭМИССИЯ 2018_2021/emis/Сезонная динамика за некоторые годы.wmf", plot1)
+ggsave("F:/ЭМИССИЯ 2018_2021/emis/Сезонная динамика за некоторые годы.pdf",  plot1)
+ggsave("F:/ЭМИССИЯ 2018_2021/emis/Сезонная динамика за некоторые годы.jpg",  plot1)
+ggsave("F:/ЭМИССИЯ 2018_2021/emis/Сезонная динамика за некоторые годы.eps",  plot1)
+```
+
+
+
+
+```{r}
+
+
+```
+
+
++scale_x_discrete(labels=c("март", "май", "июнь", "июль", "август", "сентябрь", "октябрь"))
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$year<-as.factor(em2$year)
+em2$month<-factor(em2$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+
+plothist2<-ggplot(data = em2, aes(x=pl, y=CO2))+stat_summary(fun = mean, geom = 'bar', aes(fill= pl), colour='black', width = 0.5, position= position_dodge(0.6))+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.3,position= position_dodge(0.6),aes(fill= pl))+labs( x="Площадки", y="Эмиссия, г С м-2 сут-1")+guides(color=guide_legend(title="")) +theme_classic()
+plothist2
+```
+
+
+
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$year<-as.factor(em2$year)
+em2$month<-factor(em2$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+plot_t<-ggplot(data = em2, aes(x=month, y=ts, color=pl, group= pl))+stat_summary(fun = mean, geom = 'point', pch=15)+stat_summary(fun = mean, geom ='line')+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)+scale_x_discrete(labels=c("март", "май", "июнь", "июль", "август", "сентябрь", "октябрь"))+labs( x="Дата", y="Температура почвы")+ scale_color_manual(values=c('blue','red', "forestgreen", "orange"))+theme_classic()
+plot_t
+```
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$year<-as.factor(em2$year)
+em2$month<-factor(em2$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+plot_W<-ggplot(data = em2, aes(x=month, y=W, color=pl, group= pl))+stat_summary(fun = mean, geom = 'point', pch=15)+stat_summary(fun = mean, geom ='line')+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)+scale_x_discrete(labels=c("март", "май", "июнь", "июль", "август", "сентябрь", "октябрь"))+labs( x="Дата", y="Влажность почвы")+ scale_color_manual(values=c("blue","red", "forestgreen", "orange"))+theme_classic()
+plot_W
+```
+
+#график по эмиссии по площадкам
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$year<-as.factor(em2$year)
+em2$month<-factor(em2$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+plot_e<-ggplot(data = em2, aes(x=month, y=CO2, color=pl, group= pl))+stat_summary(fun = mean, geom = 'point', pch=15)+stat_summary(fun = mean, geom ='line')+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)+scale_x_discrete(labels=c("март", "май", "июнь", "июль", "август", "сентябрь", "октябрь"))+labs( x="Дата", y="Эмиссия сутки")+ scale_color_manual(values=c('blue','red', "forestgreen", "orange"))+theme_classic()
+plot_e
+```
+
+
+
+
+
+
+
+
+```{r}
+em2$year<-as.factor(em2$year)
+em2$pl<-as.factor(em2$pl)
+em2$month<-factor(em2$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+
+mem_mod_e <- lm(formula = CO2 ~ month * year, data = em2, contrasts = list(month = contr.sum, year = contr.sum))
+process_e <- levels(em2$year)
+fprocess_e <- factor(process_e, levels = process_e)
+MyData_e <- expand.grid(month = levels(em2$month), year = fprocess_e)
+MyData_e <- data.frame(MyData_e,predict(mem_mod_e, newdata = MyData_e, interval = "confidence"))
+head(MyData_e)
+```
+
+```{r}
+MyData_e$year<-factor(MyData_e$year, levels = c("2018", "2019", "2020", "2021","2022"))
+
+grafehist<-ggplot(MyData_e, aes(x=month, y=fit, fill=year)) + geom_bar(stat="identity", width=0.5, alpha=0.5, position=position_dodge(0.7), colour="black") + scale_fill_manual(guide="legend", name="Год",  values = c("forestgreen","darkorange4","red" ,  "blue", "black"))+ theme_bw()+ geom_errorbar(aes(ymin = lwr, ymax = upr), width = 0.3, position=position_dodge(0.7))+ labs(x="Дата", y="Эмиссия, г С м-2 сут-1")
+grafehist
+```
+
+
+
+
+#по средним таблица
+
+```{r}
+em4$pl<-as.factor(em4$pl)
+em4$year<-as.factor(em4$year)
+em4$month<-factor(em4$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+plot2<-ggplot(data = em4, aes(x=month, y=CO2, color=year, group= year))+stat_summary(fun.y = mean, geom = 'point', pch=15)+stat_summary(fun.y = mean, geom ='line')+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)+scale_x_discrete(labels=c("март", "май", "июнь", "июль", "август", "сентябрь", "октябрь"))+labs( x="Дата", y="Эмиссия, г С м-2 сут-1")+guides(color=guide_legend(title="")) +theme_classic()
+plot2
+```
+
+
+```{r}
+ggsave("F:/ЭМИССИЯ 2018_2021/emis/Сезонная динамика за некоторые годы средние значения.wmf", plot2)
+ggsave("F:/ЭМИССИЯ 2018_2021/emis/Сезонная динамика за некоторые годы средние значения.pdf",  plot2)
+ggsave("F:/ЭМИССИЯ 2018_2021/emis/Сезонная динамика за некоторые годы средние значения.jpg",  plot2)
+ggsave("F:/ЭМИССИЯ 2018_2021/emis/Сезонная динамика за некоторые годы средние значения.eps",  plot2)
+```
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$year<-as.factor(em2$year)
+em8<-subset(em2, year=="2018"|  year=="2019"|  year=="2020" |  year=="2021")
+em8$year<-factor(em8$year, ordered= TRUE, levels = c("2018", "2019","2020","2021"))
+plotyear<-ggplot(data = em8, aes(x=year, y=CO2, group= Co2))+stat_summary(fun.y = mean, geom = 'point', pch=15)+stat_summary(fun.y = mean, geom ='line')+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)+labs( x="год", y="Эмиссия, г С м-2 сут-1")+guides(color=guide_legend(title="")) +theme_classic()
+plotyear
+```
+
+
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$year<-as.factor(em2$year)
+em2$month<-factor(em2$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+
+plotx<-ggplot(data = em2, aes(x=month, y=ts, color=TS, group= TS))+stat_summary(fun.y = mean, geom = 'point', pch=15)+stat_summary(fun.y = mean, geom ='line')+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)+scale_x_discrete(labels=c("март", "май", "июнь", "июль", "август", "сентябрь", "октябрь"))+labs( x="Дата", y="Температура почвы")+guides(color=guide_legend(title="")) +theme_classic()
+plotx
+```
+
+
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$year<-as.factor(em2$year)
+em2$Co2<-as.factor(em2$Co2)
+em2$month<-factor(em2$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+
+plotw<-ggplot(em2, aes(x=month, y=CO2,color=Co2, group= Co2))+stat_summary(fun.y = mean, geom = 'point', pch=15)+stat_summary(fun.y = mean, geom ='line')+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)
+plotw
+```
+
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$year<-as.factor(em2$year)
+em2$Co2<-as.factor(em2$Co2)
+em2$month<-factor(em2$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+
+ggplot(data=em2, aes(x=month, group= Co2)) +geom_line(aes(y=CO2 / 5), color="blue", stat = "identity") + geom_line(aes(y=tg), color="red", stat = "identity") +scale_y_continuous(name = "co2", sec.axis = sec_axis(~ . +5, name="tg"))  +theme(axis.text.y.left = element_text(color = "red"),axis.title.y.left = element_text(color = "red"),axis.text.y.right = element_text(color = "blue"),axis.title.y.right = element_text(color = "blue"))
+```
+
+ggplot(data=em2, aes(x=month, group= Co2)) +geom_line(aes(y=CO2 / 5), color="blue", stat = "identity") + geom_line(aes(y=tg), color="red", stat = "identity") +scale_y_continuous(name = "co2", sec.axis = sec_axis(~ . +5, name="tg"))  +theme(axis.text.y.left = element_text(color = "red"),axis.title.y.left = element_text(color = "red"),axis.text.y.right = element_text(color = "blue"),axis.title.y.right = element_text(color = "blue"))
+
+
++theme(axis.text.y.left = element_text(color = "red"),axis.title.y.left = element_text(color = "red"),axis.text.y.right = element_text(color = "blue"),axis.title.y.right = element_text(color = "blue"))
+
+
+```{r}
+em2$pl<-as.factor(em2$pl)
+em2$year<-as.factor(em2$year)
+em2$Co2<-as.factor(em2$Co2)
+em2$month<-factor(em2$month, ordered= TRUE, levels = c("march", "may","jun","jul", "aug", "sep", "oct"))
+
+ylim.prim <- c(0,15) 
+ylim.sec <- c(0, 15) 
+b <- diff(ylim.prim)/diff(ylim.sec)
+a <- ylim.prim - b*ylim.sec
+
+
+
+plot_TS<-ggplot(data=em2, aes(x=month,group= Co2)) +stat_summary(aes(y=a+CO2*b ), fun.y=mean, geom="line", colour="red")  +stat_summary(aes(y=ts/b ), fun.y=mean, geom="line", colour="blue") +scale_y_continuous( "Эмиссияб г С м-2 сут-1", sec.axis=sec_axis(~ (. - a)/b, name="Температура") ) +theme(axis.text.y.left = element_text(color = "red"),axis.title.y.left = element_text(color = "red"),axis.text.y.right = element_text(color = "blue"),axis.title.y.right = element_text(color = "blue"))+scale_x_discrete(labels=c("март", "май", "июнь", "июль", "август", "сентябрь", "октябрь"))+labs( x="Дата", y="Температура почвы")+theme_classic()
+ plot_TS 
+```
+
+```{r}
+
+```
+
+
+k_s_graf<-ggplot(mb1, aes(x=S, y=k))+ 
+  geom_point(size=4) +
+  
+  geom_errorbar(aes(ymin=k-sek, ymax=k+sek)) +
+  
+  theme(legend.position = 'none')+
+  theme_classic()
+k_s_graf
+
+```{r}
+workbook <- "F:/ЭМИССИЯ 2018_2021/статья эмиссия.xlsx"
+em5 <- read_xlsx(workbook, 6)
+summary(em5)
+describe(em5)
+```
+
+
+```{r}
+workbook <- "F:/ЭМИССИЯ 2018_2021/статья эмиссия.xlsx"
+em6 <- read_xlsx(workbook, 5)
+
+ylim.prim <- c(-4,31) 
+ylim.sec <- c(0, 15) 
+b <- diff(ylim.prim)/diff(ylim.sec)
+a <- ylim.prim - b*ylim.sec
+em6$month<-factor(em6$month, ordered= TRUE, levels = c("marth", "may","jun","jul", "aug", "sep", "oct"))
+
+ggplot(em6, aes(x=month, y=CO2))+ geom_point(size=2)+stat_summary(fun.y = mean, geom = 'point', pch=10) +stat_summary(aes(y=a+CO2*b ), fun.y=mean, geom="line", colour="red")  +stat_summary(aes(y=tg/b ), fun.y=mean, geom="line", colour="blue") +scale_y_continuous( "tg t", sec.axis=sec_axis(~ (. - a)/b, name="CO2") ) +geom_errorbar(aes(ymin=CO2-se, ymax=CO2+se)) +theme(legend.position = 'none')+theme_classic()
+```
+em7_sezon$pl<-as.factor(em7_sezon$pl)
+
+```{r}
+
+source_gist("524eade46135f6348140")
+ggplot(data = em7_sezon, aes(x=temp, y=CO2_sezon, label=CO2_sezon))+stat_smooth_func(geom="text", method="lm", hjust=0, parse=TRUE)+geom_smooth(method = "lm", se= FALSE)+geom_point()
+```
+
+```{r}
+ggplot(em7_sezon, aes(x=temp, y=CO2_sezon))+stat_smooth_func(geom="text", method="lm", hjust=0, parse=TRUE)+geom_smooth(method = "lm", se= FALSE)+stat_summary(fun.y = mean, geom = 'point', pch=15)+stat_summary(fun.y = mean, geom ='line')+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)
+
+```
+
+
+```{r}
+ggplot(data=em7_sezon, aes(x=temp, y=CO2_sezon))+geom_smooth(method = "lm", se= FALSE, formula=y~x)+stat_summary(fun.y = mean, geom = 'point', pch=15)+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)+stat_regline_equation(label.x = 0, label.y = 9)+  stat_regline_equation(label.x = 0, label.y = 8, aes(label = ..rr.label..))
+```
+
+```{r}
+plottsl<-ggplot(data=em2, aes(x=ts, y=CO2))+geom_smooth(method = "lm", se= FALSE, formula=y~x)+stat_summary(fun.y = mean, geom = 'point', pch=15)+stat_regline_equation(label.x = 0, label.y = 40)+  stat_regline_equation(label.x = 0, label.y = 35, aes(label = ..rr.label..))+labs( x="Температура почвы", y="Эмиссия сутки")+theme_classic()
+plottsl
+```
+
+```{r}
+em8$year<-as.numeric(em8$year)
+plott<-ggplot(data=em8, aes(x=year, y=CO2))+geom_smooth(method = "lm", se= FALSE)+stat_summary(fun = mean, geom = 'point', pch=15) +stat_summary(fun.data = mean_se, geom="errorbar", width= 0.1)+stat_regline_equation(label.x = 1, label.y = 6)+  stat_regline_equation(label.x = 1, label.y = 5.5, aes(label = ..rr.label..))+labs( x="Год", y="Эмиссия в сутки")+theme_classic()
+plott
+```
+
+
+```{r}
+plottgl<-ggplot(data=em2, aes(x=tg, y=CO2))+geom_smooth(method = "lm", se= FALSE, formula=y~x)+stat_summary(fun = mean, geom = 'point', pch=15)+stat_regline_equation(label.x = 0, label.y = 40)+  stat_regline_equation(label.x = 0, label.y = 35, aes(label = ..rr.label..))+labs( x="Температура газа", y="Эмиссия сутки")+theme_classic()
+plottgl
+```
+
+#Влажность и эмисия с ур-ем
+```{r}
+plotW_37P<-ggplot(data=em_37P, aes(x=W, y=CO2))+geom_smooth(method = "loess", se= FALSE, formula=y~x)+stat_summary(fun = mean)+stat_regline_equation(label.x = 20, label.y = 30)+  stat_regline_equation(label.x = 20, label.y = 25, aes(label = ..rr.label..))+labs( x="Влажность, %", y="Эмиссия сутки")+ggtitle("37P") +  geom_point(colour="red")+ coord_cartesian(xlim = c (20, 80 )) + coord_cartesian(ylim = c (0, 35))+theme_classic()
+plotW_37P
+```
+
+
+```{r}
+plotW_38K<-ggplot(data=em_38K, aes(x=W, y=CO2))+geom_smooth(method = "loess", se= FALSE, formula=y~x)+stat_summary(fun = mean)+stat_regline_equation(label.x = 20, label.y = 30)+  stat_regline_equation(label.x = 20, label.y = 25, aes(label = ..rr.label..))+labs( x="Влажность, %", y="Эмиссия сутки")+ggtitle("38K") +  geom_point(colour="forestgreen")+ coord_cartesian(xlim = c (20, 80 )) + coord_cartesian(ylim = c (0, 35))+theme_classic()
+plotW_38K
+```
+
+```{r}
+plotW_38L<-ggplot(data=em_38L, aes(x=W, y=CO2))+geom_smooth(method = "loess", se= FALSE, formula=y~x)+stat_summary(fun = mean)+stat_regline_equation(label.x = 40, label.y = 30)+  stat_regline_equation(label.x = 40, label.y = 25, aes(label = ..rr.label..))+labs( x="Влажность, %", y="Эмиссия сутки")+ggtitle("38L") +  geom_point(colour="orange")+ coord_cartesian(xlim = c (20, 80 )) + coord_cartesian(ylim = c (0, 35))+theme_classic()
+plotW_38L
+```
+
+
+```{r}
+plotW_32M<-ggplot(data=em_32M, aes(x=W, y=CO2))+geom_smooth(method = "loess", se= FALSE, formula=y~x)+stat_summary(fun = mean)+stat_regline_equation(label.x = 40, label.y = 30)+  stat_regline_equation(label.x = 40, label.y = 25, aes(label = ..rr.label..))+labs( x="Влажность, %", y="Эмиссия сутки")+ggtitle("32M") +  geom_point(colour="blue")+ coord_cartesian(xlim = c (20, 80)) + coord_cartesian(ylim = c (0, 35))+theme_classic()
+plotW_32M
+```
+
+
+```{r}
+plotW<-ggplot(data=em2, aes(x=W, y=CO2))+geom_smooth(method = "loess", se= FALSE, formula=y~x)+stat_summary(fun = mean)+stat_regline_equation(label.x = 40, label.y = 30)+  stat_regline_equation(label.x = 40, label.y = 25, aes(label = ..rr.label..))+labs( x="Влажность, %", y="Эмиссия сутки") +theme_classic()
+plotW
+```
+
+
+
+
+
+```{r}
+
+plot(x = em2$ts, y = em2$CO2, col="blue",type = "p", pch = 16, xlab="Температура почвы", ylab="Эмиссия сутки")
+expR <- lm(log(CO2) ~ ts, data=em2)
+
+summary(expR)
+out1<-exp(predict(expR))
+points(x = em2$ts, y = out1)
+
+```
+
+
+```{r}
+x<-em2$ts
+y<-em2$CO2
+z<-em2$year
+
+
+df <- data.frame(x, y,z)
+df$z<-as.factor(df$z)
+exp.mod    <- lm(log(y) ~ x, df)
+
+new_x      <- seq(min(x), max(x), 0.01)
+prediction <- exp(predict(exp.mod, newdata = list(x = new_x)))
+exp_line   <- data.frame(x = new_x, y = prediction)
+
+eq <- paste0('paste(y, " = ", italic(e^{',  round(exp.mod$coefficients[2], 2), 
+             "*x ~~+~~ ", round(exp.mod$coefficients[1], 2),
+             '}), ~~~~~~~~R^2~ "="~', round(summary(exp.mod)$r.squared, 2), ")")
+
+my_plot <- ggplot(data = df, mapping = aes(x, y)) +  geom_point( colour= z) + geom_line(data = exp_line) +geom_text(aes(x = min(x) + 0.1 * diff(range(x)),  y = min(y) + 0.9 * diff(range(y)), label = eq),  parse = TRUE, size = 5, check_overlap = TRUE, hjust = 0) +labs( x="Температура почвы", y="Эмиссия, г С м-2 сут-1")+ scale_x_continuous(limits = c ( -10, 25 )) + scale_y_continuous(limits = c ( -5, 50 )) +theme_classic()
+my_plot
+```
+
+#Экспонента по эмиссии на 32М
+
+```{r}
+em_32M<-subset(em2, pl=="32M")
+x<-em_32M$ts
+y<-em_32M$CO2
+
+df <- data.frame(x, y)
+
+exp.mod    <- lm(log(y) ~ x, df)
+
+new_x      <- seq(min(x), max(x), 0.01)
+prediction <- exp(predict(exp.mod, newdata = list(x = new_x)))
+exp_line   <- data.frame(x = new_x, y = prediction)
+
+eq <- paste0('paste(y, " = ", italic(e^{',  round(exp.mod$coefficients[2], 2), 
+             "*x ~~+~~ ", round(exp.mod$coefficients[1], 2),
+             '}), ~~~~~~~~R^2~ "="~', round(summary(exp.mod)$r.squared, 2), ")")
+
+my_plot_32M <- ggplot(data = df, mapping = aes(x, y)) +  geom_point(colour="blue") + geom_line(data = exp_line) +geom_text(aes(x = min(x) + 0.1 * diff(range(x)),  y = min(y) + 0.9 * diff(range(y)), label = eq),  parse = TRUE, size = 5, check_overlap = TRUE, hjust = 0) +labs( x="Температура почвы", y="Эмиссия, г С м-2 сут-1")+ggtitle('32M')+ scale_x_continuous(limits = c ( -10, 25 )) + scale_y_continuous(limits = c ( -5, 45 ))+theme_classic()
+my_plot_32M
+```
+
+
+```{r}
+em_37P<-subset(em2, pl=="37P")
+x<-em_37P$ts
+y<-em_37P$CO2
+
+df <- data.frame(x, y)
+
+exp.mod    <- lm(log(y) ~ x, df)
+
+new_x      <- seq(min(x), max(x), 0.01)
+prediction <- exp(predict(exp.mod, newdata = list(x = new_x)))
+exp_line   <- data.frame(x = new_x, y = prediction)
+
+eq <- paste0('paste(y, " = ", italic(e^{',  round(exp.mod$coefficients[2], 2), 
+             "*x ~~+~~ ", round(exp.mod$coefficients[1], 2),
+             '}), ~~~~~~~~R^2~ "="~', round(summary(exp.mod)$r.squared, 2), ")")
+
+my_plot_37P <- ggplot(data = df, mapping = aes(x, y)) +  geom_point(colour="red") + geom_line(data = exp_line) +geom_text(aes(x = min(x) + 0.1 * diff(range(x)),  y = min(y) + 0.9 * diff(range(y)), label = eq),  parse = TRUE, size = 5, check_overlap = TRUE, hjust = 0) +labs( x="Температура почвы", y="Эмиссия, г С м-2 сут-1")+ggtitle("37П")+ scale_x_continuous(limits = c ( -10, 25 )) + scale_y_continuous(limits = c ( -5, 45 ))+theme_classic()
+my_plot_37P
+```
+
+
+```{r}
+em_38K<-subset(em2, pl=="38K")
+x<-em_38K$ts
+y<-em_38K$CO2
+
+df <- data.frame(x, y)
+
+exp.mod    <- lm(log(y) ~ x, df)
+
+new_x      <- seq(min(x), max(x), 0.01)
+prediction <- exp(predict(exp.mod, newdata = list(x = new_x)))
+exp_line   <- data.frame(x = new_x, y = prediction)
+
+eq <- paste0('paste(y, " = ", italic(e^{',  round(exp.mod$coefficients[2], 2), 
+             "*x ~~+~~ ", round(exp.mod$coefficients[1], 2),
+             '}), ~~~~~~~~R^2~ "="~', round(summary(exp.mod)$r.squared, 2), ")")
+
+my_plot_38K <- ggplot(data = df, mapping = aes(x, y)) +  geom_point(colour="darkgreen") + geom_line(data = exp_line) +geom_text(aes(x = min(x) + 0.1 * diff(range(x)),  y = min(y) + 0.9 * diff(range(y)), label = eq),  parse = TRUE, size = 5, check_overlap = TRUE, hjust = 0) +labs( x="Температура почвы", y="Эмиссия, г С м-2 сут-1")+ggtitle("38K")+ scale_x_continuous(limits = c ( -10, 25 )) + scale_y_continuous(limits = c ( -5, 45 ))+theme_classic()
+my_plot_38K
+```
+
+
+```{r}
+em_38L<-subset(em2, pl=="38L")
+x<-em_38L$ts
+y<-em_38L$CO2
+
+df <- data.frame(x, y)
+
+exp.mod    <- lm(log(y) ~ x, df)
+
+new_x      <- seq(min(x), max(x), 0.01)
+prediction <- exp(predict(exp.mod, newdata = list(x = new_x)))
+exp_line   <- data.frame(x = new_x, y = prediction)
+
+eq <- paste0('paste(y, " = ", italic(e^{',  round(exp.mod$coefficients[2], 2), 
+             "*x ~~+~~ ", round(exp.mod$coefficients[1], 2),
+             '}), ~~~~~~~~R^2~ "="~', round(summary(exp.mod)$r.squared, 2), ")")
+
+my_plot_38L <- ggplot(data = df, mapping = aes(x, y)) +  geom_point(colour="orange") + geom_line(data = exp_line) +geom_text(aes(x = min(x) + 0.1 * diff(range(x)),  y = min(y) + 0.9 * diff(range(y)), label = eq),  parse = TRUE, size = 5, check_overlap = TRUE, hjust = 0) +labs( x="Температура почвы", y="Эмиссия, г С м-2 сут-1")+ggtitle("38Л")+ scale_x_continuous(limits = c ( -10, 25 )) + scale_y_continuous(limits = c ( -5, 45 ))+theme_classic()
+my_plot_38L
+```
+
+
+
+
+```{r}
+x<-em2$tg
+y<-em2$CO2
+
+df <- data.frame(x, y)
+
+exp.mod    <- lm(log(y) ~ x, df)
+
+new_x      <- seq(min(x), max(x), 0.01)
+prediction <- exp(predict(exp.mod, newdata = list(x = new_x)))
+exp_line   <- data.frame(x = new_x, y = prediction)
+
+eq <- paste0('paste(y, " = ", italic(e^{',  round(exp.mod$coefficients[2], 2), 
+             "*x ~~+~~ ", round(exp.mod$coefficients[1], 2),
+             '}), ~~~~~~~~R^2~ "="~', round(summary(exp.mod)$r.squared, 2), ")")
+
+my_plot2 <- ggplot(data = df, mapping = aes(x, y)) +  geom_point() + geom_line(data = exp_line) +geom_text(aes(x = min(x) + 0.1 * diff(range(x)),  y = min(y) + 0.9 * diff(range(y)), label = eq),  parse = TRUE, size = 5, check_overlap = TRUE, hjust = 0) +labs( x="Температура газа", y="Эмиссия сутки") +theme_classic()
+my_plot2
+
+```
+
+
+
+
+
+
+
+
+```{r}
+plot(x = em2$tg, y = em2$CO2, col="blue",type = "p", pch=16, xlab="Температура вохдуха", ylab="Эмиссия сутки")
+
+expRg <- lm(log(CO2) ~ tg, data=em2)
+
+expRg
+out2<-exp(predict(expRg))
+points(x = em2$tg, y = out2)
+
+```
+
+#регрессия
+
+```{r}
+P_reg<- subset(reg, pl == "37P")
+P_reg$year<-as.factor(P_reg$year)
+P_reg$pl<-as.factor(P_reg$pl)
+shapiro.test(P_reg$W)
+shapiro.test(P_reg$ts)
+shapiro.test(P_reg$CO2)
+fit_P <- lme(CO2~ts*W, random = ~1|month, data= P_reg, method = "ML") 
+summary(fit_P)
+```
+
+```{r}
+K_reg<- subset(reg, pl == "38K")
+K_reg$year<-as.factor(K_reg$year)
+K_reg$pl<-as.factor(K_reg$pl)
+shapiro.test(K_reg$W)
+shapiro.test(K_reg$ts)
+shapiro.test(K_reg$CO2)
+fit_K <- lme(CO2~ts*W, random = ~1|month, data= K_reg, method = "ML") 
+summary(fit_K)
+```
+
+```{r}
+L_reg<- subset(reg, pl == "38L")
+L_reg$year<-as.factor(L_reg$year)
+L_reg$pl<-as.factor(L_reg$pl)
+shapiro.test(L_reg$W)
+shapiro.test(L_reg$ts)
+shapiro.test(L_reg$CO2)
+fit_L <- lme(CO2~ts*W, random = ~1|month, data= L_reg, method = "ML") 
+summary(fit_L)
+```
+
+
+```{r}
+M_reg<- subset(reg, pl == "32M")
+M_reg$year<-as.factor(M_reg$year)
+M_reg$pl<-as.factor(M_reg$pl)
+shapiro.test(M_reg$W)
+shapiro.test(M_reg$ts)
+shapiro.test(M_reg$CO2)
+fit_M <- lme(CO2~ts*W, random = ~1|month, data= M_reg, method = "ML") 
+summary(fit_M)
+```
+
+
+
+
+
+
+
+
+
+

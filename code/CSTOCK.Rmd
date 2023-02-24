@@ -1,0 +1,147 @@
+---
+title: "CSTOCK"
+author: "Boreal"
+date: "2023-02-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# Libraries=============================
+```{r message=FALSE, warning=FALSE}
+library(xlsx)
+library(readxl)
+library(psych)
+library(dplyr)
+library(ggplot2)
+library(factoextra)
+library(FactoMineR)
+library(ade4)
+library(car)
+library(corrplot)
+library(graphics)
+library(pvclust)
+library(doBy)
+library(ggpubr)
+library(scales)
+require(ggthemes)
+require(ggpmisc)
+library(beanplot)
+library(multcomp)
+require(multcomp)
+library(lubridate)
+library(MASS)
+library(TraMineR)
+library(vegan)
+library(tidyverse)
+library(rstatix)
+library(ggpubr)
+library(cowplot)
+library(gmt)
+library(geosphere)
+library(rlang)
+library(plyr)
+library(ggplot2)
+library(nlme)
+library(lme4) 
+library(gridExtra)
+library(GGally)
+library(devtools) 
+install_github("vqv/ggbiplot")
+library(ggbiplot)
+library(reshape2)
+library(PMCMR)
+library(RVAideMemoire)
+library(MuMIn)
+library(visreg)
+```
+
+```{r data acquire}
+workbook<- "D:/R/CSTOCK/data/CSTOCK.xlsx"
+cstock<-read.xlsx(workbook, 1, colClasses="character")# colClasses all characters to retrieve correct data without losing and replacing by NAs.
+names(cstock)
+
+#cstock<-read.xlsx(workbook, 1,colClasses=c("integer","integer", "integer","numeric", "integer", "numeric"))
+str(cstock)
+##transform data from 'chr' to proper format: 'num', 'int'
+cstock$ID<-as.vector(cstock$ID)
+cstock$plot<-as.factor(cstock$plot)
+cstock$type<-as.factor(cstock$type)
+cstock$mxdpt<-as.numeric(cstock$mxdpt)
+cstock$lyr<-as.integer(cstock$lyr)
+cstock$lthkn<-as.numeric(cstock$lthkn)
+cstock$lstock<-as.numeric(cstock$lstock)
+cstock$e<-as.numeric(cstock$e)
+cstock$n<-as.numeric(cstock$n)
+cstock$TPG<-as.factor(cstock$TPG)
+cstock$sl<-as.numeric(cstock$sl)
+cstock[sapply(cstock, is.character)] <- lapply(cstock[sapply(cstock, is.character)], as.factor)# transform all characters to factors
+
+cstock%>%
+  #filter(day !="0"& day !="218")%>%  
+  group_by(plot, type)%>%
+  #identify_outliers(rem)
+  #get_summary_stats(mxdpt, type="mean_se")
+```
+```{r}
+rename(cstock, plot = plt)
+arrange(cstock, plot, type)
+
+cstock%>%
+  #group_by(plot)%>%
+  select(plot, mxdpt, type)
+
+
+md%>%
+  #group_by(plot)%>%
+  mutate(smx= mean(mxdpt, ifelse(type=="soil",mean,NA))
+
+ 
+  mutate(soilmx=mean(mxdpt, na.rm=T,
+         littermx=mean(mxdpt, na.rm=T)
+         )
+  
+md%>%
+  arrange(factor(plot))%>%
+  group_by(plot)%>%
+  filter(type=="soil")%>%
+  ggplot(aes(x=plot, y=mxdpt))+stat_summary(fun = mean, geom = 'bar', aes(fill= plot), colour='black', width = 0.3, position= position_dodge(0.6))+stat_summary(fun.data = mean_se, geom="errorbar", width= 0.3,position= position_dodge(0.6))#+labs( x="Площадки", y="Эмиссия, г С м-2 сут-1")+guides(color=guide_legend(title="")) +theme_classic()
+#plothist2
+  
+  mutate(smx=mean(mxdpt))
+
+
+filter(, type==soil))
+  #filter(day !="0"& day !="218")  
+  
+  #identify_outliers(rem)
+  cstock%>%
+    filter(type=="litter")%>%
+    ggplot(aes(x=fn40, y=mxdpt, group_by(plot), geom_point()))
+  # +scale_x_discrete(labels=c("март", "май", "июнь", "июль", "август", "сентябрь", "октябрь"))+labs( x="Дата", y="Эмиссия, г С м-2 сут-1")+guides(color=guide_legend(title="")) +theme_classic()
+plot1
+```
+
+
