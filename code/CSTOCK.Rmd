@@ -30,7 +30,6 @@ plot(pressure)
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
 # Libraries=============================
-```{r, warning=FALSE}
 library(xlsx)
 library(readxl)
 library(psych)
@@ -43,7 +42,6 @@ library(corrplot)
 library(graphics)
 library(pvclust)
 library(doBy)
-library(ggpubr)
 library(scales)
 require(ggthemes)
 require(ggpmisc)
@@ -74,11 +72,23 @@ library(PMCMR)
 library(RVAideMemoire)
 library(MuMIn)
 library(visreg)
+
+# DATA IMPORT AND SORTING=====================================================
+```{r libraries}
+library(xlsx)
+library(readxl)
+library(psych)
+library(rstatix)
+library(ggpubr)
+library(ggplot2)
+library(dplyr, warn=FALSE)
+library(tidyr)
 ```
 
 ```{r data acquire}
-workbook<- "D:/R/CSTOCK1/data/CSTOCK.xlsx"
-cstock<-read.xlsx(workbook, 1, colClasses="character")# colClasses all characters to retrieve correct data without losing and replacing by NAs.
+#workbook<- "D:/R/CSTOCK1/data/CSTOCK.xlsx"
+cstock<-read.xlsx(workbook, 1, colClasses="character")
+#colClasses all characters to retrieve correct data without losing and replacing by NAs.
 #names(cstock) 
 
 #cstock<-read.xlsx(workbook, 1,colClasses=c("integer","integer", "integer","numeric", "integer", "numeric"))
@@ -88,22 +98,36 @@ cstock<-read.xlsx(workbook, 1, colClasses="character")# colClasses all character
 cstock$pl<-as.factor(cstock$pl)
 cstock$type<-as.factor(cstock$type)
 cstock$mxdpt<-as.numeric(cstock$mxdpt)
-cstock$lyr<-as.integer(cstock$lyr)
+#cstock$lyr<-as.integer(cstock$lyr)
 cstock$lthkn<-as.numeric(cstock$lthkn)
 cstock$lstock<-as.numeric(cstock$lstock)
 cstock$e<-as.numeric(cstock$e)
 cstock$n<-as.numeric(cstock$n)
 cstock$TPG<-as.factor(cstock$TPG)
 cstock$sl<-as.numeric(cstock$sl)
+cstock$lbd<-as.numeric(cstock$lbd)
+```
+```{r arrange whole dataset ordering by factor $ pl}
+cstock=cstock%>%
+  arrange(match(pl, c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43")))
+#Here ordering made by factor levels, which assigned manually
+#Теперь ранжируем по двум факторам последвоательно
+cstock=cstock%>%
+  arrange(match(pl, c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43"), slyr, c("top", "org10", "min20", "min30")))
+```
+
+```{r rename vars}
+#rename(New_Name = Old_Name)
+cstock=cstock%>%
+  rename(tsf=tst)
 ```
 
 
-```{r}
+
+```{r pivot wider plot summarise}
 #pivot_wider creates columns of same row number with values from given column and names of new column by factor's level
 
-library(ggplot2)
-library(dplyr, warn=FALSE)
-library(tidyr)
+
 cstock%>%
   filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
   select(pl, type, mxdpt)%>%#select a given columns
@@ -114,6 +138,8 @@ cstock%>%
   geom_point() 
  
 ```
+
+
 ```{r}
 cstock%>%
   filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
@@ -124,13 +150,83 @@ cstock%>%
   ggplot(aes(litter, soil))+
   geom_point() 
 ```
-```{r}
-cstock%>%
+```{r Grouuping by plots and general patterns}
+gen=cstock%>%
   filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
   select(pl, type, mxdpt, e, n)%>%#select a given columns
   group_by(pl, type)%>%#grouping by given factors
-  summarise(mxdpt=mean(mxdpt, na.rm=T))
+  summarise(across(everything(), mean))%>%# все переменные в саммари)
+  pivot_wider(names_from = type, values_from = mxdpt) # колонки из переменной по фактору
+  
+  
 ```
 
+```{r Plotting groupped}
+gen%>%
+  ggplot(aes(n, litter, color=pl))+
+  geom_point()+
+  stat_smooth(method=loess, se=F, color="red")
+  shapiro_test(c)
+  get_summary_stats(lbd, type = "mean")
+  
+```
+
+```{r structure of layers with plot}
+cstock%>%
+  filter(type=="soil")%>%
+  group_by(pl, lyr)%>%
+  summarise(n=n())%>%
+  ggbarplot(x="lyr", y="n",
+            ncol=6,
+            facet.by = "pl",
+            scales="free_y")
+ggsave("figures/n_layers_by_plot.png", width = 16, height=20)
+```
+
+```{r new var. $slyr by case_when, mutate + grepl,}
+cstock%>%
+  filter(grepl("lit", type))# фильтрует массив по фрагменту фактора
+
+cstock<-cstock%>%  
+  mutate(slyr = case_when(
+    lbd <= 5 ~ "top",
+    lbd <= 10 ~ "org10",
+    lbd > 10 & lbd <= 23 ~"min20",
+    lbd > 23 ~ "min30",
+    TRUE ~ NA # in all other cases = "other"
+  ), .after = lyr)  # mutate a new column after column $lyr
+cstock$slyr<-as.factor(cstock$slyr)
+```
+
+```{r summarise new column from mutate}
+cstock%>%
+  filter(type=="soil")%>%
+  group_by(pl, slyr)%>%
+  arrange(slyr)%>%
+  summarise(mean=mean(lbd), n=n())
+  
+
+
+filter(type=="soil")%>%
+  head(40)
+  
+  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
+  select(pl, type, mxdpt, e, n)%>%#select a given columns
+  group_by(pl, type)%>$%#grouping by given factors
+  summarise(across(everything(), mean))%>%# все переменные в саммари)
+  pivot_wider(names_from = type, values_from = mxdpt) 
+```
+```{r}
+cstock %>% 
+  filter(!is.na(lstock)) %>% 
+  select(pl, lstock, wd1, wd2, wd3, n) %>% 
+  group_by(pl) %>% 
+  summarise(across(everything(), mean)) %>% 
+  mutate(WD= wd1+wd2+wd3) %>% 
+  #filter(wd1 < 2) %>% 
+  ggplot(aes(x=lstock, y=n))+
+  geom_point() 
+  #scale_y_continuous(labels = percent)
+```
 
 
