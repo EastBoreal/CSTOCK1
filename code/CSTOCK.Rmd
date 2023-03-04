@@ -96,6 +96,7 @@ cstock$TPG<-as.factor(cstock$TPG)
 cstock$sl<-as.numeric(cstock$sl)
 cstock$lbd<-as.numeric(cstock$lbd)
 ```
+#Data modification
 ```{r ordering by factor $ pl, +alternative ways}
 cstock$pl<-factor(cstock$pl, levels = c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43"))
 #Here ordering made by factor levels, which assigned manually
@@ -111,61 +112,35 @@ cstock=cstock%>%
   rename(tsf=tst)
 ```
 
-
-
-```{r pivot wider plot summarise}
-#pivot_wider creates columns of same row number with values from given column and names of new column by factor's level
-cstock%>%
-  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
-  select(pl, type, mxdpt)%>%#select a given columns
-  group_by(pl, type)%>%#grouping by given factors
-  summarise(mxdpt=mean(mxdpt, na.rm=T))%>%#na.rm is not neede if filter in the beginning
-  pivot_wider(names_from = type, values_from = mxdpt)%>%
-  ggplot(aes(litter, soil))+
-  geom_point() 
- 
-```
-
-
-```{r echo=FALSE}
-cstock%>%
-  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
-  select(pl, type, mxdpt, e, n)%>%#select a given columns
-  group_by(pl, type)%>%#grouping by given factors
-  #summarise(mxdpt=mean(mxdpt, na.rm=T))%>%#na.rm is not neede if filter in the beginning
-  pivot_wider(names_from = type, values_from = mxdpt)%>%
-  ggplot(aes(litter, soil))+
-  geom_point() 
-```
-```{r Grouping by plots and general patterns}
-#cstock%>%
- # filter((TPG=="HI" &
-         #birch > 10 |
-          # bark <2))
-gen=cstock%>%
-  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
-  select(pl, type, mxdpt, e, n)%>%#select a given columns
-  group_by(pl, type)%>%#grouping by given factors
-  summarise(across(everything(), mean))%>%# все переменные в саммари)
-  pivot_wider(names_from = type, values_from = mxdpt) # колонки из переменной по фактору
-  
-  
-```
-#Data modification
-```{r Add new columns y pivot...}
-comp<-
-  cstock %>% 
+```{r Add new columns layrs depth by pivot...}
+cstock=cstock %>% 
   filter_all(any_vars(!is.na(.))) %>% #remove ROWS where ALL NAs 
   pivot_wider(
     names_from = type, #names of new columns from factor 'type'
     values_from = mxdpt, # values of new columns are from numeric variable "mxdpt"
-    names_glue = "{type}_mxdp")%>%# modification of names by adding information on the content
-  pivot_wider(
+    names_glue = "{type}_mxdp")%>%# modification of names by adding information on the  
+ 
+```
+Создаём обобщённую таблицу запасов С по слоям включая подстилку и несколько вариантов запасов в почве по медианам и средним
+```{r summary tibble + Soil carbon stock summary}
+cstock %>% 
+  group_by(pl, slyr) %>%
+  dplyr::summarise(across(where(is.numeric) & !cstock, mean),# саммари по всем числовым столбцам кроме столбца с запасами С, он нужен далее
+                   cs=mean(cstock),# создаём столбец средних значений запасов по слоям
+                   cs_med=median(cstock))%>%# создаём столбец мединан запасов по слоям
+  dplyr::mutate(totcs_mn=sum(cs),# создаём столбец с суммой  запасов по слоям на ПП 
+                totcs_mdn=sum(cs_med))# создаём столбец с суммой  медиан запасов по слоям 
+``` 
+dplyr::summarize(cs=mean(cstock), # создаём столбец средних значений запасов по слоям
+                   cs_med=median(cstock)) %>% # создаём столбец мединан запасов по слоям
+ 
+ 
+ pivot_wider(
     names_from = type, 
     values_from = mxdpt, 
     names_glue = "{type}_mxdp")%>%
   
-  #filter(!is.na(lstock)) %>% 
+  # 
   
   #select(pl, lstock, wd1, wd2, wd3, n) %>% 
   #group_by(pl) %>%# grouping by factor plot
@@ -176,6 +151,7 @@ comp<-
 narm=as.data.frame(comp$completeObs)# create a dataframe of complete data
 res<-PCA(comp$completeObs)
   summarise_all(funs(sum(is.na(.))))
+  
    
    # select only numeric columns # summaries everything with grouping  by plot"
   #summarise_each(funs(mean(., na.rm = TRUE)))%>%
@@ -187,7 +163,61 @@ res<-PCA(comp$completeObs)
   # была проблема из-за наличия колонки с одинаковыми значениями, так же проверяйте структуру данных, чтобы все были "numeric" 
 summary(FECO1)
 # строим биплот с указанием площадок цветом
+
+```{r pivot wider plot summarise}
+#pivot_wider creates columns of same row number with values from given column and names of new column by factor's level
+cstock%>%
+  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
+  select(pl, type, mxdpt)%>%#select a given columns
+  group_by(pl, type)%>%#grouping by given factors
+  summarise(mxdpt=mean(mxdpt, na.rm=T))%>%#na.rm is not neede if filter in the beginning
+  pivot_wider(names_from = type, values_from = mxdpt)%>%
+  ggplot(aes(litter, soil))+
+  geom_point() 
+
 ```
+
+
+```{r echo=FALSE}
+cstock%>%
+  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
+  select(pl, type, mxdpt, e, n)%>%#select a given columns
+  group_by(pl, type)%>%#grouping by given factors
+  #summarise(mxdpt=mean(mxdpt, na.rm=T))%>%#na.rm is not neede if filter in the beginning
+  pivot_wider(names_from = type, values_from = mxdpt)%>%
+  select(-row)
+  ggplot(aes(litter, soil))+
+  geom_point() 
+```
+```{r Plotting layer depth}
+cstock %>% 
+  filter(!is.na(lbd))%>%
+  ggplot(aes(x=pl, y=lbd))+
+  geom_point(aes(colour = slyr), size = 2)+
+  scale_x_discrete(position = "top") +
+  scale_y_continuous(limits=c(32, 0), trans = "reverse", breaks =seq(0, 32, 1))+
+  #scale_y_reverse()+
+  labs(
+  x= "PLOT",
+  y= "Soil layer border, cm")
+ggsave("figures/lyrs_border.png", width = 10, height=4)
+```
+
+```{r Grouping by plots and general patterns}
+#cstock%>%
+ # filter((TPG=="HI" &
+         #birch > 10 |
+          # bark <2))
+gen=cstock%>%
+  filter(!is.na(slyr))%>%# remove all NAs prior analysis
+  #select(pl, type, mxdpt, e, n)%>%#select a given columns
+  group_by(pl, slyr)%>%#grouping by given factors
+  summarise(across(everything(), mean))%>%# все переменные в саммари)
+  pivot_wider(names_from = type, values_from = mxdpt) # колонки из переменной по фактору
+  
+  
+```
+
 
 ```{r Plotting groupped}
 gen%>%
@@ -221,7 +251,7 @@ cstock<-cstock%>%
     lbd <= 10 ~ "org10",
     lbd > 10 & lbd <= 23 ~"min20",
     lbd > 23 ~ "min30",
-    TRUE ~ NA # in all other cases = "other"
+    TRUE ~ "lit" # in all other cases = "other"
   ), .after = lyr)  # mutate a new column after column $lyr
 cstock$slyr<-as.factor(cstock$slyr)
 ```
