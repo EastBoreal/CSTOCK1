@@ -107,13 +107,15 @@ cstock$TPG<-as.factor(cstock$TPG)
 cstock$sl<-as.numeric(cstock$sl)
 cstock$lbd<-as.numeric(cstock$lbd)
 ```
-```{r arrange whole dataset ordering by factor $ pl}
+```{r ordering by factor $ pl, +alternative ways}
 cstock=cstock%>%
   arrange(match(pl, c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43")))
 #Here ordering made by factor levels, which assigned manually
 #Теперь ранжируем по двум факторам последвоательно
 cstock=cstock%>%
   arrange(match(pl, c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43"), slyr, c("top", "org10", "min20", "min30")))
+#P_C_1$plot<-factor(P_C_1$plot, order=TRUE, levels = c("L80", "L15", "BA3", "LB5", "LB0", "PL3", "PB20"))
+#Alternative way of ordering by basic R commands.
 ```
 
 ```{r rename vars}
@@ -126,8 +128,6 @@ cstock=cstock%>%
 
 ```{r pivot wider plot summarise}
 #pivot_wider creates columns of same row number with values from given column and names of new column by factor's level
-
-
 cstock%>%
   filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
   select(pl, type, mxdpt)%>%#select a given columns
@@ -151,6 +151,10 @@ cstock%>%
   geom_point() 
 ```
 ```{r Grouuping by plots and general patterns}
+#cstock%>%
+ # filter((TPG=="HI" &
+         #birch > 10 |
+          # bark <2))
 gen=cstock%>%
   filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
   select(pl, type, mxdpt, e, n)%>%#select a given columns
@@ -216,17 +220,101 @@ filter(type=="soil")%>%
   summarise(across(everything(), mean))%>%# все переменные в саммари)
   pivot_wider(names_from = type, values_from = mxdpt) 
 ```
-```{r}
+
+```{r summary by plots of woody debris}
 cstock %>% 
-  filter(!is.na(lstock)) %>% 
-  select(pl, lstock, wd1, wd2, wd3, n) %>% 
+  #filter(!is.na(lstock)) %>% 
+  #select(pl, lstock, wd1, wd2, wd3, n) %>% 
   group_by(pl) %>% 
   summarise(across(everything(), mean)) %>% 
   mutate(WD= wd1+wd2+wd3) %>% 
   #filter(wd1 < 2) %>% 
-  ggplot(aes(x=lstock, y=n))+
-  geom_point() 
+  ggplot(aes(x=WD, y=n, label=pl))+
+  geom_point(color="orange")+
+  geom_smooth(se=FALSE, color="black", size=0.5, span=1, show.legend = F)+
+  geom_text(hjust=0.5, vjust=1.5)
   #scale_y_continuous(labels = percent)
 ```
 
 
+Построение PCA для всех данных и установление общих закономерностей Площадки отображаются на графике разным цветом
+Перед этим анализом делается выделение главных компонент командой prcomp
+В массиве должны быть только числовые пременные
+```{r PCA, rm col ALL NAs}
+library(missMDA)
+library(FactoMineR)
+library(naniar)
+comp<-cstock %>% 
+  #filter(!is.na(lstock)) %>% 
+  #select(pl, lstock, wd1, wd2, wd3, n) %>% 
+  #group_by(pl) %>%# grouping by factor plot
+  select(where(is.numeric)) %>%
+  miss_var_summary()
+ #estim_ncpPCA(., scale = TRUE) %>% 
+  imputePCA(., ncp=1, scale = TRUE) %>%
+narm=as.data.frame(comp$completeObs)# create a dataframe of complete data
+res<-PCA(comp$completeObs)
+  summarise_all(funs(sum(is.na(.))))
+  #pivot_wider(names_from = type, values_from = mxdpt, names_glue = "{type}_mxdp") %>% 
+   # select only numeric columns # summaries everything with grouping  by plot"
+  #summarise_each(funs(mean(., na.rm = TRUE)))%>%
+  cor.plot()
+  select(where( ~!all(is.na(.x))))%>%#remove column where ALL NAs 
+  select( , -soil_mxdp) %>% #remove soil_mxdp column
+  filter(if_any(everything(), ~ !is.na(.x))) %>% 
+#write.xlsx(as.data.frame,file='MyFile.xlsx') 
+  # была проблема из-за наличия колонки с одинаковыми значениями, так же проверяйте структуру данных, чтобы все были "numeric" 
+summary(FECO1)
+# строим биплот с указанием площадок цветом
+pr<-princomp(comp$completeObs)
+G_PCA<- ggbiplot(pr, choices = c(1, 2), scale = 0.5, obs.scale=1, var.scale=1, ellipse = T)
+G_PCA
+ggbip
+```
+```{r NAs finding}
+# проверка количества NA в массиве
+library(missMDA)
+library(FactoMineR)
+library(naniar)
+cstock %>% 
+ select(where(is.numeric)) %>% # select all numeric variables
+  miss_var_summary()# show the summary of Na's by variables (number and percent of NAs)
+```
+```{r NAs handling}
+library(missMDA)
+library(FactoMineR)
+library(naniar)
+cstock %>% 
+  select(where(is.numeric)) %>%
+  scale() %>% #scaling whole dataset to prevent big values problem
+  estim_ncpPCA(., scale = TRUE)%>%
+  
+cp=cstock %>% 
+  select(where(is.numeric)) %>%
+  scale() %>%
+  imputePCA(., ncp=2, scale = TRUE) 
+
+narm=as.data.frame(cp$completeObs)
+narm %>% 
+  PCA()
+```
+%>% 
+  
+# create a dataframe of complete data
+res<-PCA(comp$completeObs)
+  summarise_all(funs(sum(is.na(.))))
+  #pivot_wider(names_from = type, values_from = mxdpt, names_glue = "{type}_mxdp") %>% 
+   # select only numeric columns # summaries everything with grouping  by plot"
+  #summarise_each(funs(mean(., na.rm = TRUE)))%>%
+  cor.plot()
+  select(where( ~!all(is.na(.x))))%>%#remove column where ALL NAs 
+  select( , -soil_mxdp) %>% #remove soil_mxdp column
+  filter(if_any(everything(), ~ !is.na(.x))) %>% 
+#write.xlsx(as.data.frame,file='MyFile.xlsx') 
+  # была проблема из-за наличия колонки с одинаковыми значениями, так же проверяйте структуру данных, чтобы все были "numeric" 
+summary(FECO1)
+# строим биплот с указанием площадок цветом
+pr<-princomp(comp$completeObs)
+G_PCA<- ggbiplot(pr, choices = c(1, 2), scale = 0.5, obs.scale=1, var.scale=1, ellipse = T)
+G_PCA
+ggbip
