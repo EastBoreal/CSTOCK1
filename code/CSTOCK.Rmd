@@ -153,7 +153,8 @@ cstock %>%
     values_from = c(cs, c, lcs_cm))%>%
   filter_all(any_vars(!is.na(.))) %>% 
   select(where( ~!all(is.na(.x))))%>%
-  summarise_each(funs(mean(., na.rm = TRUE)),-soil_dpt)
+  summarise_each(funs(mean(., na.rm = TRUE)),-c(mxdpt, soil_dpt))
+
    
  
     #names_glue = "{slyr}_{}") 
