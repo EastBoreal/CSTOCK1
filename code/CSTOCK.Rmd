@@ -112,24 +112,51 @@ cstock=cstock%>%
   rename(tsf=tst)
 ```
 
+```{r new var. $slyr by case_when, mutate + grepl,}
+#cstock%>%
+  #filter(grepl("lit", type))# фильтрует массив по фрагменту фактора
+
+cstock<-cstock%>%  
+  mutate(slyr = case_when(
+    lbd <= 5 & type == 'soil' ~ "top",# задём знчн фктр по услвм глбн и урвн фктр почв/пдстлк
+    lbd <= 10 & type == 'soil' ~ "org10",
+    lbd > 10 & lbd <= 23 & type == 'soil' ~"min20",
+    lbd > 23 & type == 'soil' ~ "min30",
+    TRUE ~ "lit" # in all other cases = "other" 
+  ), .after = lyr)  # mutate a new column after column $lyr
+cstock$slyr<-as.factor(cstock$slyr)
+#В данном примере создали колонку фактор с названиями слоёв исходя из значений переменной нижняя граница и значения фактора type почва или подстилка. Задали значения для почв во всех прочих случаях = lit (подстилка)
+```
+
 ```{r Add new columns layrs depth by pivot...}
 cstock=cstock %>% 
   filter_all(any_vars(!is.na(.))) %>% #remove ROWS where ALL NAs 
   pivot_wider(
     names_from = type, #names of new columns from factor 'type'
-    values_from = mxdpt, # values of new columns are from numeric variable "mxdpt"
-    names_glue = "{type}_mxdp")%>%# modification of names by adding information on the  
+    values_from = lbd, # values of new columns are from numeric variable "mxdpt"
+    names_glue = "{type}_dpt")# modification of names by adding information on the  
  
 ```
 Создаём обобщённую таблицу запасов С по слоям включая подстилку и несколько вариантов запасов в почве по медианам и средним
-```{r summary tibble + Soil carbon stock summary}
+```{r summary tibble + Soil crbn stck smmry+fltr fctr lvl LITTER wthn clctn}
 cstock %>% 
   group_by(pl, slyr) %>%
   dplyr::summarise(across(where(is.numeric) & !cstock, mean),# саммари по всем числовым столбцам кроме столбца с запасами С, он нужен далее
                    cs=mean(cstock),# создаём столбец средних значений запасов по слоям
                    cs_med=median(cstock))%>%# создаём столбец мединан запасов по слоям
-  dplyr::mutate(totcs_mn=sum(cs),# создаём столбец с суммой  запасов по слоям на ПП 
-                totcs_mdn=sum(cs_med))# создаём столбец с суммой  медиан запасов по слоям 
+  dplyr::mutate(soil_mdp = max (soil_dpt, na.rm = T))%>%
+  dplyr::mutate(totcs_mn=sum(cs[slyr!='lit']),# сумма средних без подстилки!!!! на ПП 
+                totcs_mdn=sum(cs_med[slyr!='lit']),# сумма медиан без подстилки!!!! на ПП
+                .after = cs) %>% #положение новых колонок в массиве
+    pivot_wider(
+    names_from = slyr, #explained in prev. chunk
+    values_from = c(cs, c, lcs_cm))%>%
+  filter_all(any_vars(!is.na(.))) %>% 
+  select(where( ~!all(is.na(.x))))%>%
+  summarise_each(funs(mean(., na.rm = TRUE)),-soil_dpt)
+   
+ 
+    #names_glue = "{slyr}_{}") 
 ``` 
 dplyr::summarize(cs=mean(cstock), # создаём столбец средних значений запасов по слоям
                    cs_med=median(cstock)) %>% # создаём столбец мединан запасов по слоям
@@ -241,20 +268,6 @@ cstock%>%
 ggsave("figures/n_layers_by_plot.png", width = 16, height=20)
 ```
 
-```{r new var. $slyr by case_when, mutate + grepl,}
-cstock%>%
-  filter(grepl("lit", type))# фильтрует массив по фрагменту фактора
-
-cstock<-cstock%>%  
-  mutate(slyr = case_when(
-    lbd <= 5 ~ "top",
-    lbd <= 10 ~ "org10",
-    lbd > 10 & lbd <= 23 ~"min20",
-    lbd > 23 ~ "min30",
-    TRUE ~ "lit" # in all other cases = "other"
-  ), .after = lyr)  # mutate a new column after column $lyr
-cstock$slyr<-as.factor(cstock$slyr)
-```
 
 ```{r summarise new column from mutate}
 cstock%>%
