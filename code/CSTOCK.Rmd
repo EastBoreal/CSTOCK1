@@ -5,7 +5,7 @@ date: "2023-02-22"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+ ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ## Including Plots
@@ -62,7 +62,7 @@ library(RVAideMemoire)
 library(MuMIn)
 library(visreg)
 
-# DATA IMPORT AND SORTING=====================================================
+# DATA IMPORT, SORTING, SUMMARISING=====================================================
 ```{r libraries}
 library(xlsx)
 library(readxl)
@@ -101,30 +101,24 @@ cstock$lbd<-as.numeric(cstock$lbd)
 cstock$pl<-factor(cstock$pl, levels = c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43"))
 #Here ordering made by factor levels, which assigned manually
 #Теперь ранжируем по двум факторам последвоательно
-cstock=cstock%>%
-  arrange(match(pl, c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43"), slyr, c("top", "org10", "min20", "min30")))
+#cstock=cstock%>%
+  #arrange(match(pl, c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43"), slyr, c("top", "org10", "min20", "min30")))
 #Alternative way of ordering by basic R commands.
-```
-
-```{r rename vars}
-#rename(New_Name = Old_Name)
-cstock=cstock%>%
-  rename(tsf=tst)
 ```
 
 ```{r new var. $slyr by case_when, mutate + grepl,}
 #cstock%>%
   #filter(grepl("lit", type))# фильтрует массив по фрагменту фактора
-
 cstock<-cstock%>%  
   mutate(slyr = case_when(
     lbd <= 5 & type == 'soil' ~ "top",# задём знчн фктр по услвм глбн и урвн фктр почв/пдстлк
     lbd <= 10 & type == 'soil' ~ "org10",
     lbd > 10 & lbd <= 23 & type == 'soil' ~"min20",
     lbd > 23 & type == 'soil' ~ "min30",
-    TRUE ~ "lit" # in all other cases = "other" 
-  ), .after = lyr)  # mutate a new column after column $lyr
+    TRUE ~ "lit")) %>%  # in all other cases = "other" 
+    relocate(slyr, .after = lyr)# relocate a new column after column $lyr
 cstock$slyr<-as.factor(cstock$slyr)
+within(cstock, rm(.after))# remove column
 #В данном примере создали колонку фактор с названиями слоёв исходя из значений переменной нижняя граница и значения фактора type почва или подстилка. Задали значения для почв во всех прочих случаях = lit (подстилка)
 ```
 
@@ -135,11 +129,33 @@ cstock=cstock %>%
     names_from = type, #names of new columns from factor 'type'
     values_from = lbd, # values of new columns are from numeric variable "mxdpt"
     names_glue = "{type}_dpt")# modification of names by adding information on the  
- 
 ```
-Создаём обобщённую таблицу запасов С по слоям включая подстилку и несколько вариантов запасов в почве по медианам и средним
-```{r summary tibble + Soil crbn stck smmry+fltr fctr lvl LITTER wthn clctn}
+
+```{r Summarise factors (counting)}
 cstock %>% 
+  freq_table(pl, slyr)
+#prop - percent of this group in whole 1 st factor
+```
+
+
+```{r Shapiro-test}
+library(tidyr)
+library(data.table)
+library(broom)
+
+cstock %>% 
+  dplyr::select(pl, slyr, lthkn, bulk, c, lstock, cstock, lcs_cm) %>% #оставили тольео некоторые колонки
+  group_by(pl) %>% 
+  summarise_if(is.numeric, list( #саммари только по числовым переменным
+    stat = ~if (length(unique(.)) == 1) NA else shapiro.test(.)$statistic,# первая переменная сама статистика Шапиро
+    p.value = ~if (length(unique(.)) == 1) NA else shapiro.test(.)$p.value
+  ))
+```
+
+Создаём обобщённую таблицу запасов С по слоям включая подстилку и несколько вариантов запасов в почве по медианам и средним
+```{r summary dataset + Soil crbn stck smmry+fltr fctr lvl LITTER wthn clctn}
+cssum=
+  cstock %>% 
   group_by(pl, slyr) %>%
   dplyr::summarise(across(where(is.numeric) & !cstock, mean),# саммари по всем числовым столбцам кроме столбца с запасами С, он нужен далее
                    cs=mean(cstock),# создаём столбец средних значений запасов по слоям
@@ -151,76 +167,109 @@ cstock %>%
     pivot_wider(
     names_from = slyr, #explained in prev. chunk
     values_from = c(cs, c, lcs_cm))%>%
-  filter_all(any_vars(!is.na(.))) %>% 
+  filter(!is.na(pl)) %>% #  удаляем строку пустых значений по признаку названия площадки pl=NA 
   select(where( ~!all(is.na(.x))))%>%
-  summarise_each(funs(mean(., na.rm = TRUE)),-c(mxdpt, soil_dpt))
-
-   
- 
-    #names_glue = "{slyr}_{}") 
+  summarise_each(funs(mean(., na.rm = TRUE)),-c(mxdpt, soil_dpt)) %>% 
+  mutate(WD=wd1+wd2+wd3) %>% 
+  relocate(WD, .after = wd3)# создаём новую колонку с суммой 3 значений
+         # помещаем новую колонку после 'wd3'
 ``` 
-dplyr::summarize(cs=mean(cstock), # создаём столбец средних значений запасов по слоям
-                   cs_med=median(cstock)) %>% # создаём столбец мединан запасов по слоям
- 
- 
- pivot_wider(
-    names_from = type, 
-    values_from = mxdpt, 
-    names_glue = "{type}_mxdp")%>%
-  
-  # 
-  
-  #select(pl, lstock, wd1, wd2, wd3, n) %>% 
-  #group_by(pl) %>%# grouping by factor plot
-  select(where(is.numeric)) %>%
-  miss_var_summary()
- #estim_ncpPCA(., scale = TRUE) %>% 
-  imputePCA(., ncp=1, scale = TRUE) %>%
-narm=as.data.frame(comp$completeObs)# create a dataframe of complete data
-res<-PCA(comp$completeObs)
-  summarise_all(funs(sum(is.na(.))))
-  
-   
-   # select only numeric columns # summaries everything with grouping  by plot"
-  #summarise_each(funs(mean(., na.rm = TRUE)))%>%
-  cor.plot()
-  select(where( ~!all(is.na(.x))))%>%#remove column where ALL NAs 
-  select( , -soil_mxdp) %>% #remove soil_mxdp column
-  filter(if_any(everything(), ~ !is.na(.x))) %>% 
-#write.xlsx(as.data.frame,file='MyFile.xlsx') 
-  # была проблема из-за наличия колонки с одинаковыми значениями, так же проверяйте структуру данных, чтобы все были "numeric" 
-summary(FECO1)
-# строим биплот с указанием площадок цветом
 
-```{r pivot wider plot summarise}
-#pivot_wider creates columns of same row number with values from given column and names of new column by factor's level
-cstock%>%
-  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
-  select(pl, type, mxdpt)%>%#select a given columns
-  group_by(pl, type)%>%#grouping by given factors
-  summarise(mxdpt=mean(mxdpt, na.rm=T))%>%#na.rm is not neede if filter in the beginning
-  pivot_wider(names_from = type, values_from = mxdpt)%>%
-  ggplot(aes(litter, soil))+
-  geom_point() 
+```{r summary dataset by plot and layers 190obs}
+csmlr=cstock %>% 
+  group_by(pl, slyr) %>%
+  dplyr::summarise(across(where(is.numeric) & !cstock, mean),# саммари по всем числовым столбцам кроме столбца с запасами С, он нужен далее
+                   cs=mean(cstock),# создаём столбец средних значений запасов по слоям
+                   cs_med=median(cstock))%>%# создаём столбец мединан запасов по слоям
+  dplyr::mutate(soil_mdp = max (soil_dpt, na.rm = T))%>%
+  dplyr::mutate(totcs_mn=sum(cs[slyr!='lit']),# сумма средних без подстилки!!!! на ПП 
+                totcs_mdn=sum(cs_med[slyr!='lit']),# сумма медиан без подстилки!!!! на ПП
+                .after = cs) %>% #положение новых колонок в массиве
+  filter(!is.na(pl)) %>% #  удаляем строку пустых значений по признаку названия площадки pl=NA 
+  select(where( ~!all(is.na(.x))))%>%
+  #summarise_each(funs(mean(., na.rm = TRUE)),-c(mxdpt, soil_dpt)) %>% 
+  mutate(WD=wd1+wd2+wd3) %>% 
+  relocate(WD, .after = wd3)# создаём новую колонку с суммой 3 значений
+         # помещаем новую колонку после 'wd3'
+``` 
 
-```
-
-
-```{r echo=FALSE}
-cstock%>%
-  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
-  select(pl, type, mxdpt, e, n)%>%#select a given columns
-  group_by(pl, type)%>%#grouping by given factors
-  #summarise(mxdpt=mean(mxdpt, na.rm=T))%>%#na.rm is not neede if filter in the beginning
-  pivot_wider(names_from = type, values_from = mxdpt)%>%
-  select(-row)
-  ggplot(aes(litter, soil))+
-  geom_point() 
-```
-```{r Plotting layer depth}
+```{r csmlr plotting plot IDs by factor topography}
 cstock %>% 
-  filter(!is.na(lbd))%>%
-  ggplot(aes(x=pl, y=lbd))+
+  select( , -NA_dpt)%>%           #remove column
+  filter(!is.na(pl)) %>%          #romove empty row
+  #TPG=factor(TPG, levels=c('FtR', 'HI', 'SI', 'SV', 'VF')) %>% 
+  ggplot(aes(x = TPG, y = pl, color= TPG, show.legend=F)) +
+  geom_point(size=2, show.legend = FALSE, position = "identity")+
+  geom_text(aes(label = pl), size=5, hjust = 1.2, vjust = 0.5, show.legend=F)+
+  scale_x_discrete(limits=c('HI', 'SI', 'SV', 'VF'))+
+  coord_fixed(ratio = 0.2/2)+ 
+  theme_bw()+
+  theme(axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())+
+  labs(
+  x= "Элемент рельефа",
+  y= "Пробная площадь")  
+```
+
+```{r plotting plot IDs by factor layer}
+cstock %>% 
+  select( , -NA_dpt)%>% #remove column
+  filter(!is.na(pl)) %>% #romove empty row
+  ggplot(aes(x = slyr, y = pl, color= slyr, show.legend=F)) +
+  geom_point(size=2, show.legend = FALSE)+
+  geom_text(aes(label = pl), size=5, hjust = 1.2, vjust = 0.5, show.legend=F)+
+  scale_x_discrete(limits=c('lit', 'top', 'org10', 'min20', 'min30'))+ 
+  coord_fixed(ratio = 0.2/2)+ 
+  theme_bw()+
+  theme(axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())+
+  labs(
+  x= "Слой",
+  y= "Пробная площадь")
+```
+
+Делаем Шапиро тест на нормальность
+```{r}
+library(tidyr)
+library(data.table)
+library(broom)
+cstock %>% 
+  select(pl,slyr,#выбираем колонки с факторами 
+         where(is.numeric)) %>% # и остальные переменные числовые
+  gather(key = "variable_name", value = "value", lthkn:lstock) %>% 
+  group_by(variable_name, pl) %>% 
+  do(tidy(where(is.numeric(shapiro.test(.$value))))) %>% 
+  ungroup() 
+```
+###mice data imputation------------------
+```{r MICE imputation+comparisn with missMDA}
+library(mice)
+library(psych)
+narm1=complete(mice(cssum, m=5))# количество повторений, если m=3, создастся по 3 столбца для каждой переменной содержащей НА
+# Делаем саммари для проверки результатов замены значений 2мя способами:+ сохраняем в эксель
+is.na(narm1)
+cstock %>%
+  group_by(pl) %>% 
+  miss_var_summary()#анализпропусков в данных
+cssum %>%
+  describe() %>% 
+  write.xlsx(as.data.frame,file='csum.xlsx')
+narm %>% 
+  describe() %>% 
+  write.xlsx(as.data.frame,file='narm.xlsx')
+narm1 %>% 
+  describe()%>%
+  write.xlsx(as.data.frame,file='narm1.xlsx')
+```
+ 
+```{r Plotting layer depth}
+cstock %>%
+  filter(!is.na(mxdpt))%>%
+  ggplot(aes(x=pl, y=mxdpt))+
   geom_point(aes(colour = slyr), size = 2)+
   scale_x_discrete(position = "top") +
   scale_y_continuous(limits=c(32, 0), trans = "reverse", breaks =seq(0, 32, 1))+
@@ -231,83 +280,88 @@ cstock %>%
 ggsave("figures/lyrs_border.png", width = 10, height=4)
 ```
 
-```{r Grouping by plots and general patterns}
-#cstock%>%
- # filter((TPG=="HI" &
-         #birch > 10 |
-          # bark <2))
-gen=cstock%>%
-  filter(!is.na(slyr))%>%# remove all NAs prior analysis
-  #select(pl, type, mxdpt, e, n)%>%#select a given columns
-  group_by(pl, slyr)%>%#grouping by given factors
-  summarise(across(everything(), mean))%>%# все переменные в саммари)
-  pivot_wider(names_from = type, values_from = mxdpt) # колонки из переменной по фактору
-  
-  
-```
-
-
-```{r Plotting groupped}
-gen%>%
-  ggplot(aes(n, litter, color=pl))+
-  geom_point()+
-  stat_smooth(method=loess, se=F, color="red")
-  shapiro_test(c)
-  get_summary_stats(lbd, type = "mean")
-  
-```
-
 ```{r structure of layers with plot}
 cstock%>%
-  filter(type=="soil")%>%
-  group_by(pl, lyr)%>%
-  summarise(n=n())%>%
-  ggbarplot(x="lyr", y="n",
-            ncol=6,
+  #filter(type=="soil")%>%
+  group_by(pl, slyr)%>%
+  dplyr::summarise(n=n())%>%
+  ggbarplot(x="slyr", y="n",
+            ncol=3,
             facet.by = "pl",
             scales="free_y")
-ggsave("figures/n_layers_by_plot.png", width = 16, height=20)
+#ggsave("figures/n_layers_by_plot.png", width = 16, height=20)
 ```
 
-
-```{r summarise new column from mutate}
-cstock%>%
-  filter(type=="soil")%>%
-  group_by(pl, slyr)%>%
-  arrange(slyr)%>%
-  summarise(mean=mean(lbd), n=n())
-  
-
-
-filter(type=="soil")%>%
-  head(40)
-  
-  filter(!is.na(mxdpt))%>%# remove all NAs prior analysis
-  select(pl, type, mxdpt, e, n)%>%#select a given columns
-  group_by(pl, type)%>$%#grouping by given factors
-  summarise(across(everything(), mean))%>%# все переменные в саммари)
-  pivot_wider(names_from = type, values_from = mxdpt) 
-```
-
-```{r summary by plots of woody debris}
+````{r summary by plots of woody debris}
 cstock %>% 
   #filter(!is.na(lstock)) %>% 
   #select(pl, lstock, wd1, wd2, wd3, n) %>% 
   group_by(pl) %>% 
-  summarise(across(everything(), mean)) %>% 
+  dplyr::summarise(across(everything(), mean)) %>% 
   mutate(WD= wd1+wd2+wd3) %>% 
   #filter(wd1 < 2) %>% 
-  ggplot(aes(x=WD, y=n, label=pl))+
+  ggplot(aes(x=MBS, y=lthkn, label=pl))+
   geom_point(color="orange")+
-  geom_smooth(se=FALSE, color="black", size=0.5, span=1, show.legend = F)+
+  geom_smooth(se=FALSE, color="black", size=0.5, span=.8, show.legend = F)+
   geom_text(hjust=0.5, vjust=1.5)
   #scale_y_continuous(labels = percent)
 ```
 
 
+# missMDA, PCA, FA===================== 
 Построение PCA для всех данных и установление общих закономерностей Площадки отображаются на графике разным цветом
 Перед этим анализом делается выделение главных компонент командой prcomp
 В массиве должны быть только числовые пременные
+```{r Handling missing values}
+library(missMDA)
+library(FactoMineR)
+library(naniar)
+cp=cssum %>%
+  select(where(is.numeric)) %>%
+  #scale() %>% #scaling whole dataset to prevent big values problem
+  #estim_ncpPCA(., scale = TRUE)+
+  imputePCA(., ncp=4)
+narm=as.data.frame(cp$completeObs)
+
+narm=narm %>% 
+  add_column(pl = cssum$pl,# вставляем колонку из другого массива
+             .before = "lthkn") %>% # помещаем новую колонку перед 'lthkn'
+  
+```
+
+
+```{r PCA}
+narm %>%
+  select(-c(branch, bark, stem, leaves, wd1, wd2, wd3, c_min20, cs_med, c_org10, lcs_cm_min30, lcs_cm_top, lcs_cm_min20, lcs_cm_org10, totcs_mdn, cs_org10, biottl)) %>%# exclude several variables 
+  #scale() %>% 
+  PCA(scale=T) %>% 
+  summary()
+```
+
+```{r FA}
+cssum %>%
+  select(where(is.numeric)) %>%
+  fa(nfactors=2,
+     rotate = "varimax",
+     fm="pa",
+     residuals = TRUE)
+
+narm %>%
+  select(where(is.numeric)) %>%
+  select(-c(branch, bark, stem, leaves, wd1, wd2, wd3, c_min20, cs_med, c_org10, lcs_cm_min30, lcs_cm_top, lcs_cm_min20, lcs_cm_org10, totcs_mdn, cs_org10, biottl)) %>%
+  fa(nfactors=3,
+     rotate = "none",
+     fm="minres",
+     residuals = TRUE)
+narm1 %>%
+  select(where(is.numeric)) %>%
+  #select(-c(branch, bark, stem, leaves, wd1, wd2, wd3, c_min20, cs_med, c_org10, lcs_cm_min30, lcs_cm_top, lcs_cm_min20, lcs_cm_org10, totcs_mdn, cs_org10, biottl)) %>%
+  fa(nfactors=3,
+     rotate = "varimax",
+     fm="minres",
+     residuals = TRUE)
+```
+
 ```{r PCA, rm col ALL NAs}
 library(missMDA)
 library(FactoMineR)
@@ -323,48 +377,37 @@ comp<-cstock %>%
 narm=as.data.frame(comp$completeObs)# create a dataframe of complete data
 res<-PCA(comp$completeObs)
   summarise_all(funs(sum(is.na(.))))
-  #pivot_wider(names_from = type, values_from = mxdpt, names_glue = "{type}_mxdp") %>% 
-   # select only numeric columns # summaries everything with grouping  by plot"
-  #summarise_each(funs(mean(., na.rm = TRUE)))%>%
-  cor.plot()
-  select(where( ~!all(is.na(.x))))%>%#remove column where ALL NAs 
-  select( , -soil_mxdp) %>% #remove soil_mxdp column
-  filter(if_any(everything(), ~ !is.na(.x))) %>% 
-#write.xlsx(as.data.frame,file='MyFile.xlsx') 
-  # была проблема из-за наличия колонки с одинаковыми значениями, так же проверяйте структуру данных, чтобы все были "numeric" 
-summary(FECO1)
-# строим биплот с указанием площадок цветом
-pr<-princomp(comp$completeObs)
-G_PCA<- ggbiplot(pr, choices = c(1, 2), scale = 0.5, obs.scale=1, var.scale=1, ellipse = T)
-G_PCA
-ggbip
+
 ```
-```{r N```{r NAs handling}
+
+```{r princomp}
+princomp(cssum %>% 
+  select(where(is.numeric)) %>%
+  select(-c(branch, bark, stem, leaves, wd1, wd2, wd3, c_min20, cs_med, c_org10, lcs_cm_min30, lcs_cm_top, lcs_cm_min20, lcs_cm_org10, totcs_mdn, cs_org10, biottl))) %>% 
+ggbiplot( choices = c(1, 2), scale = 0.5, obs.scale=1, var.scale=1, ellipse = T)
+```
+
+```{r NAs handling}
 library(missMDA)
 library(FactoMineR)
 library(naniar)
 cstock %>% 
   select(where(is.numeric)) %>%
   scale() %>% #scaling whole dataset to prevent big values problem
+  na.omit() %>%
   estim_ncpPCA(., scale = TRUE)%>%
   
 cp=cstock %>% 
   select(where(is.numeric)) %>%
   scale() %>%
+  na.omit() %>%
   imputePCA(., ncp=2, scale = TRUE) 
 
 narm=as.data.frame(cp$completeObs)
 narm %>% 
   PCA()
-```As finding}
-# проверка количества NA в массиве
-library(missMDA)
-library(FactoMineR)
-library(naniar)
-cstock %>% 
- select(where(is.numeric)) %>% # select all numeric variables
-  miss_var_summary()# show the summary of Na's by variables (number and percent of NAs)
 ```
+
 ```{r NAs handling+PCA}
 library(missMDA)
 library(FactoMineR)
@@ -383,31 +426,95 @@ narm=as.data.frame(cp$completeObs)
 narm %>% 
   PCA() %>% 
   summary()
+
 ```
-```{r PRINCOMP+GGPLOT}
-cstock %>% 
+
+```{r princomp and ggplot}
+cssum %>% 
   select(where(is.numeric)) %>%
   scale() %>%
   imputePCA(., ncp=2, scale = TRUE) %>% 
-princomp(narm)
+library(ggbiplot)
+
+pr=prcomp(narm1[, 2:42]) 
+ggbiplot(pr, choices = c(1, 2), scale=1, groups = as.factor(narm1$pl), ellipse = T)
+G_PCA
+
+pr=prcomp(scale(narm))
+ggbiplot(pr, choices = c(1, 2), scale = 2, obs.scale=0.5, var.scale=1, ellipse = T)
+G_PCA
+pca_P_C_1_2<-princomp(scale(P_C_1[, 2:12]))
+ggbiplot(pca_P_C_1_2, scale=0, groups = as.factor(P_C_1$plot), ellipse = T)
+
 ```
 
-  
-# create a dataframe of complete data
-res<-PCA(comp$completeObs)
-  summarise_all(funs(sum(is.na(.))))
-  #pivot_wider(names_from = type, values_from = mxdpt, names_glue = "{type}_mxdp") %>% 
-   # select only numeric columns # summaries everything with grouping  by plot"
-  #summarise_each(funs(mean(., na.rm = TRUE)))%>%
-  cor.plot()
-  select(where( ~!all(is.na(.x))))%>%#remove column where ALL NAs 
-  select( , -soil_mxdp) %>% #remove soil_mxdp column
-  filter(if_any(everything(), ~ !is.na(.x))) %>% 
-#write.xlsx(as.data.frame,file='MyFile.xlsx') 
-  # была проблема из-за наличия колонки с одинаковыми значениями, так же проверяйте структуру данных, чтобы все были "numeric" 
-summary(FECO1)
-# строим биплот с указанием площадок цветом
-pr<-princomp(comp$completeObs)
-G_PCA<- ggbiplot(pr, choices = c(1, 2), scale = 0.5, obs.scale=1, var.scale=1, ellipse = T)
-G_PCA
-ggbip
+#RANDOM FOREST===============
+```{r}
+library(randomForest)
+#Фильтруем массив для randomForest
+sumrf=narm1 %>%# этот массив создан на основе саммари с заполнением пропусков при помощи mice
+  select(-c(branch, bark, stem, leaves, wd1, wd2, wd3, c_min20, cs_med, c_org10, lcs_cm_min30, lcs_cm_top, lcs_cm_min20, lcs_cm_org10, totcs_mdn, cs_org10, biottl, c_lit, c_top, c_min30, lcs_cm_lit))
+
+set.seed(123) 
+srf.imputed=rfImpute(slyr ~., data = csmlr, iter=6)
+srf.model=randomForest(slyr ~., data=srf.imputed, proximity=TRUE)# на первом месте должен быть фактор
+srf.model
+plot(srf.model)
+```
+
+```{r}
+#Preparing dataset
+sumrf=sumrf %>%
+  dplyr::rename(Aboveground_C_total=agttl,
+                Litter_thikness=lthkn, 
+                Bulk_density=bulk,
+                Litter_stock = lstock,
+                Larch = larch,
+                Birch=birch,
+                Dead_stand=dsw,
+                E_lon=e,
+                N_lat=n,
+                Alt=alt,
+                Slope=sl,
+                Slope_facing=az,
+                Fires_40yrs=fn40,
+                Yrs_lst_fr=tsf,
+                Ann_temp=at,
+                Ann_prec=anpr,
+                Soil_c_stock=totcs_mn,
+                Soil_depth=soil_mdp,
+                Litter_c_stock=cs_lit,
+                Soil_10_20_C=cs_min20,
+                Topsoil_C=cs_top,
+                Soil_20_30_C=cs_min30)
+
+gl1=glm(Litter_c_stock ~., family=gaussian, data=sumrf[, 2:26])
+gl2=glm(Aboveground_C_total ~ ., family = gaussian, data=sumrf[, 2:26])
+gl3=glm(Soil_c_stock ~ ., family = gaussian, data=sumrf[, 2:26])
+gl4=glm(Soil_10_20_C ~ . - N_lat, - Ann_temp, family = gaussian, data=sumrf[, 2:26])
+tab_model(gl4), #file = "model4.docx")
+
+tab_model(gl1, gl2, gl3,
+          collapse.ci = TRUE,
+          p.style = "numeric_stars")
+plot_models(gl1, gl2, gl3, grid = TRUE)
+
+```
+
+
+
+
+```{r sjPlot*********** }
+view_df(cstock, show.frq = T, show.prc = T, show.na = T)
+cstock %>% 
+  dplyr::group_by(pl, slyr) %>% 
+  plot_frq(
+    cstock,
+    type = "bar",
+    show.mean = TRUE,
+    normal.curve = TRUE) %>% 
+  plot_grid()
+```
+
+
+
