@@ -22,7 +22,7 @@ read_csv("D:/R/CSTOCK1/data/NH.Ts+dSST.csv", skip=1, na="***")%>%
   title = "Land-Ocean: Northern Hemispheric Means",
   subtitle = "Data source: NASA's Goddard Institute for Space Studies(GISS).\nCredit: NASA/GISS"
   )+
-  theme_light()+
+  theme(axis.text.y = element_blank())
   theme(
   axis.ticks = element_blank(),
   plot.title.position = "plot",
