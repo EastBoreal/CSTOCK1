@@ -3,11 +3,15 @@ title: "CSTOCK"
 author: "Boreal"
 date: "2023-02-22"
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
- ```{r setup, include=FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
 ## Including Plots
 
 You can also embed plots, for example:
@@ -16,60 +20,28 @@ You can also embed plots, for example:
 plot(pressure)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Note that the `echo = FALSE` parameter was added to the code chunk to
+prevent printing of the R code that generated the plot.
 
 # Libraries=============================
-library(xlsx)
-library(readxl)
-library(psych)
-library(dplyr)
-library(factoextra)
-library(FactoMineR)
-library(ade4)
-library(car)
-library(corrplot)
-library(graphics)
-library(pvclust)
-library(doBy)
-library(scales)
-require(ggthemes)
-require(ggpmisc)
-library(beanplot)
-library(multcomp)
-require(multcomp)
-library(lubridate)
-library(MASS)
-library(TraMineR)
-library(vegan)
-library(tidyverse)
-library(rstatix)
-library(ggpubr)
-library(cowplot)
-library(gmt)
-library(geosphere)
-library(rlang)
-library(ggplot2)
-library(nlme)
-library(lme4) 
-library(gridExtra)
-library(GGally)
-library(devtools) 
-install_github("vqv/ggbiplot")
-library(ggbiplot)
-library(reshape2)
-library(PMCMR)
-library(RVAideMemoire)
-library(MuMIn)
-library(visreg)
-library(missMDA)
-library(FactoMineR)
-library(naniar)
-library(missMDA)
-library(FactoMineR)
-library(naniar)
+
+library(xlsx) library(readxl) library(psych) library(dplyr)
+library(factoextra) library(FactoMineR) library(ade4) library(car)
+library(corrplot) library(graphics) library(pvclust) library(doBy)
+library(scales) require(ggthemes) require(ggpmisc) library(beanplot)
+library(multcomp) require(multcomp) library(lubridate) library(MASS)
+library(TraMineR) library(vegan) library(tidyverse) library(rstatix)
+library(ggpubr) library(cowplot) library(gmt) library(geosphere)
+library(rlang) library(ggplot2) library(nlme) library(lme4)
+library(gridExtra) library(GGally) library(devtools)
+install_github("vqv/ggbiplot") library(ggbiplot) library(reshape2)
+library(PMCMR) library(RVAideMemoire) library(MuMIn) library(visreg)
+library(missMDA) library(FactoMineR) library(naniar) library(missMDA)
+library(FactoMineR) library(naniar)
 
 # DATA IMPORT, SORTING, SUMMARISING=====================================================
-```{r libraries} 
+
+```{r libraries, echo=FALSE}
 library(xlsx)
 library(readxl)
 library(psych)
@@ -79,6 +51,18 @@ library(ggplot2)
 library(dplyr, warn=FALSE)
 library(tidyr)
 library(purrr)
+library(gtsummary)
+library(hrbrthemes)
+library(viridis)
+library(data.table)
+library(broom)
+library(rpart)
+library(partykit)
+library(ggparty)
+library(rpart.plot)
+library(performance)
+library(report)
+library(naniar)
 ```
 
 ```{r data acquire}
@@ -103,7 +87,9 @@ cstock$TPG<-as.factor(cstock$TPG)
 cstock$sl<-as.numeric(cstock$sl)
 cstock$lbd<-as.numeric(cstock$lbd)
 ```
+
 #Data modification
+
 ```{r ordering by factor $ pl, +alternative ways}
 cstock$pl<-factor(cstock$pl, levels = c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43"))
 #Here ordering made by factor levels, which assigned manually
@@ -128,6 +114,7 @@ cstock$slyr<-as.factor(cstock$slyr)
 within(cstock, rm(.after))# remove column
 #В данном примере создали колонку фактор с названиями слоёв исходя из значений переменной нижняя граница и значения фактора type почва или подстилка. Задали значения для почв во всех прочих случаях = lit (подстилка)
 ```
+
 ```{r Названия и номера колонок массива}
 as.matrix(colnames(sumrf))
 ```
@@ -141,13 +128,29 @@ cstock=cstock %>%
     names_glue = "{type}_dpt")# modification of names by adding information on the  
 ```
 
-```{r Summarise factors (counting)}
+```{r Саммари по запасам подстилки по площадкам}
 cstock %>% 
-  freq_table(MBS,pl) %>% 
-  dplyr::summarise()
-#prop - percent of this group in whole 1 st factor
+  dplyr::filter(slyr == "lit",
+                !is.na(pl))  %>% 
+   dplyr::select(pl, lstock, cstock) %>% 
+   group_by(pl) %>% 
+   summarise(across(everything(), list(mean, sd, min, max))) %>% 
+  write.xlsx(as.data.frame,file='csum.xlsx')
 ```
 
+```{r Summarise DATA by gtsummary}
+
+cstock %>% 
+  group_by(pl) %>% 
+  tbl_summary(statistic = list(all_continuous() ~ "{mean} ({min}-{max})", label = pl))  
+  dplyr::summarise()
+#prop - percent of this group in whole 1 st factor
+
+# Саммари по обобщённой таблице
+sumrf %>% 
+  select(where(is.numeric))%>%
+  tbl_summary(statistic = list(all_continuous() ~ "{mean} ({min}-{max})")) 
+```
 
 ```{r Shapiro-test}
 library(tidyr)
@@ -163,7 +166,17 @@ cstock %>%
   ))
 ```
 
-Создаём обобщённую таблицу запасов С по слоям включая подстилку и несколько вариантов запасов в почве по медианам и средним
+```{r Normality check}
+library(MVN)
+sumrf %>% 
+  select(where(is.numeric)) %>%
+  
+  mvn()
+```
+
+Создаём обобщённую таблицу запасов С по слоям включая подстилку и
+несколько вариантов запасов в почве по медианам и средним
+
 ```{r summary dataset + Soil crbn stck smmry+fltr fctr lvl LITTER wthn clctn}
 cssum=
   cstock %>% 
@@ -185,7 +198,7 @@ cssum=
   relocate(WD, .after = wd3)# создаём новую колонку с суммой 3 значений
 
          # помещаем новую колонку после 'wd3'
-``` 
+```
 
 ```{r summary dataset by plot and layers 190obs}
 csmlr=cstock %>% 
@@ -205,21 +218,22 @@ csmlr=cstock %>%
          # помещаем новую колонку после 'wd3'
 ```
 
-Был фактор с 5 уровнями, делаем с 6ю путём добавления в каждую ПП по одной строке
+Был фактор с 5 уровнями, делаем с 6ю путём добавления в каждую ПП по
+одной строке
+
 ```{r Новая строка в каждой группе с новым уровнем фактора и повторением остальных ячеек!}
-cstock1=cstock %>% 
+cstock %>% 
   group_by(pl) %>% 
   slice(1) %>% 
   mutate(slyr = "agrnd") %>% 
   bind_rows(cstock, .)
-cstock1$slyr<-as.factor(cstock1$slyr)
-cstock1$pl<-factor(cstock1$pl, levels = c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43"))
+cstock$slyr<-as.factor(cstock$slyr)
+cstock$pl<-factor(cstock$pl, levels = c("D1", "D2", "D3", "D4", "D5", "D6", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D25", "D26", "D27", "D28", "D29", "D30", "D31", "D32", "D33", "D34", "D35", "D36", "D37", "D38", "D39", "D40", "D41", "D42", "D43"))
 ```
-
 
 ```{r summary dataset ДЛЯ ПУЛОВ}
 stocsum=
-  cstock1 %>% 
+  cstock %>% 
   group_by(pl, slyr) %>%
   dplyr::summarise(across(where(is.numeric) & !cstock, mean),
                    cs=mean(cstock))%>% 
@@ -230,8 +244,8 @@ stocsum=
     slyr == 'min20' ~ "soil",
     slyr == 'min30' ~ "soil",
     slyr == 'lit' ~ "litter",
-    slyr == 'agrnd' ~ "Forest",
-    TRUE ~ NA))) 
+      TRUE ~ NA))%>%
+  mutate(pool = "Forest")) 
 
 ```
 
@@ -246,7 +260,7 @@ stocsum=stocsum %>%
     pool == 'litter' ~ cs,
     TRUE ~ 0))
 ```
- 
+
 ```{r csmlr plotting plot IDs by factor topography}
 cstock %>% 
             #remove column
@@ -267,27 +281,29 @@ cstock %>%
   y= "Пробная площадь")  
 ```
 
-```{r plotting plot IDs by factor layer}
+```{r plotting plot IDs by slope}
 cstock %>% 
   select( , -NA_dpt)%>% #remove column
   filter(!is.na(pl)) %>% #romove empty row
-  ggplot(aes(x = slyr, y = pl, color= slyr, show.legend=F)) +
+  ggplot(aes(x = sl, y = pl, color= sl, show.legend=F)) +
   geom_point(size=2, show.legend = FALSE)+
-  geom_text(aes(label = pl), size=5, hjust = 1.2, vjust = 0.5, show.legend=F)+
-  scale_x_discrete(limits=c('lit', 'top', 'org10', 'min20', 'min30'))+ 
-  coord_fixed(ratio = 0.2/2)+ 
-  theme_bw()+
+  geom_text(aes(label = pl), size=3, hjust = 1.2, vjust = 0.5, show.legend=F)+
+  #scale_x_discrete(limits=c('lit', 'top', 'org10', 'min20', 'min30'))+ 
+  scale_x_continuous(breaks =seq(-1, 16, 1))+
+  coord_fixed(ratio = 0.6/4)+ 
+  theme_ipsum()+
   theme(axis.text.y = element_blank(),
         axis.ticks = element_blank(),
-        panel.grid.major = element_blank(),
+        panel.grid.major.y = element_blank(),
         panel.grid.minor = element_blank())+
   labs(
-  x= "Слой",
+  x= "Slope, degree",
   y= "Пробная площадь")
+
 ```
 
+#Делаем Шапиро тест на нормальность
 
-Делаем Шапиро тест на нормальность
 ```{r Shapiro}
 library(tidyr)
 library(data.table)
@@ -300,13 +316,41 @@ cstock %>%
   do(tidy(where(is.numeric(shapiro.test(.$value))))) %>% 
   ungroup() 
 ```
+
+```{r REPORT}
+cstock %>% 
+  dplyr::group_by(slyr)%>% 
+  select(cstock) %>% 
+  report_sample()
+```
+
 ###mice data imputation------------------
+
 ```{r MICE imputation+comparisn with missMDA}
 library(mice)
 library(psych)
+
 narm1=complete(mice(cssum, m=5))# количество повторений, если m=3, создастся по 3 столбца для каждой переменной содержащей НА
 # Делаем саммари для проверки результатов замены значений 2мя способами:+ сохраняем в эксель
 is.na(narm1)
+
+stocsum=complete(mice(stocsum, m=5))
+stocsum %>% 
+  dplyr::filter(pool == "soil") %>% 
+  dplyr::select(pl,slyr,stock) %>% 
+  group_by(pl, pool) %>% 
+  distinct(pool, .keep_all = TRUE)%>%  # удалим дубликаты в факторе 'pool'
+  #miss_var_summary() %>% 
+  tbl_strata(
+    strata = pl,
+    ~.x %>% 
+      tbl_summary(
+        by=pool))
+
+
+csmlr %>% 
+  
+
 cstock %>%
   group_by(pl) %>% 
   miss_var_summary()#анализпропусков в данных
@@ -319,8 +363,11 @@ narm %>%
 narm1 %>% 
   describe()%>%
   write.xlsx(as.data.frame,file='narm1.xlsx')
+
+sumrf %>% 
+write.xlsx(as.data.frame,file='cstock.xlsx')
 ```
- 
+
 ```{r Plotting layer depth}
 cstock %>%
   filter(!is.na(mxdpt))%>%
@@ -347,20 +394,7 @@ cstock%>%
 #ggsave("figures/n_layers_by_plot.png", width = 16, height=20)
 ```
 
-````{r summary by plots of woody debris}
-cstock %>% 
-  #filter(!is.na(lstock)) %>% 
-  #select(pl, lstock, wd1, wd2, wd3, n) %>% 
-  group_by(pl) %>% 
-  dplyr::summarise(across(everything(), mean)) %>% 
-  mutate(WD= wd1+wd2+wd3) %>% 
-  #filter(wd1 < 2) %>% 
-  ggplot(aes(x=MBS, y=lthkn, label=pl))+
-  geom_point(color="orange")+
-  geom_smooth(se=FALSE, color="black", size=0.5, span=.8, show.legend = F)+
-  geom_text(hjust=0.5, vjust=1.5)
-  #scale_y_continuous(labels = percent)
-```
+\``{r summary by plots of woody debris} cstock %>%    #filter(!is.na(lstock)) %>%    #select(pl, lstock, wd1, wd2, wd3, n) %>%    group_by(pl) %>%    dplyr::summarise(across(everything(), mean)) %>%    mutate(WD= wd1+wd2+wd3) %>%    #filter(wd1 < 2) %>%    ggplot(aes(x=MBS, y=lthkn, label=pl))+   geom_point(color="orange")+   geom_smooth(se=FALSE, color="black", size=0.5, span=.8, show.legend = F)+   geom_text(hjust=0.5, vjust=1.5)   #scale_y_continuous(labels = percent)`
 
 ```{r Plotting c stocks}
 library(hrbrthemes)
@@ -368,12 +402,13 @@ library(viridis)
 csmlr %>% 
   ggplot(aes(x=factor(n),y=stock, fill=slyr,)) + 
   geom_bar(position="stack", stat="identity")+
-  scale_fill_viridis(discrete=TRUE, name="") + 
+  #scale_fill_viridis(discrete=TRUE, name="") + 
   scale_fill_discrete(limits=c("lit", "top", "org10", "min20", "min30"))+
   theme_ipsum()
 
 
-stocsum %>%
+stocsum %>% # CARBON STOCKS IN SOIL+LITTER STRUCTURED
+  group_by(pl) %>% 
   distinct(pool, .keep_all = TRUE)%>%  # удалим дубликаты в факторе 'pool'
   ggplot(aes(x=factor(n),y=stock, fill=pool,)) + 
   geom_bar(stat="identity", colour="black")+
@@ -382,6 +417,7 @@ stocsum %>%
   theme_ipsum()
 
 stocsum %>%
+  group_by(pl) %>% 
   distinct(pool, .keep_all = TRUE)%>%  # удалим дубликаты в факторе 'pool'
   #arrange(desc(alt))
 ggplot(aes(x=factor(anpr),y=stock, fill=pool,))+
@@ -424,11 +460,13 @@ stocsum %>%
                     )
 ```
 
+# missMDA, PCA, FA=====================
 
-# missMDA, PCA, FA===================== 
-Построение PCA для всех данных и установление общих закономерностей Площадки отображаются на графике разным цветом
-Перед этим анализом делается выделение главных компонент командой prcomp
-В массиве должны быть только числовые пременные
+Построение PCA для всех данных и установление общих закономерностей
+Площадки отображаются на графике разным цветом Перед этим анализом
+делается выделение главных компонент командой prcomp В массиве должны
+быть только числовые пременные
+
 ```{r Handling missing values}
 cp=cssum %>%
   select(where(is.numeric)) %>%
@@ -443,7 +481,6 @@ narm=narm %>%
   
 ```
 
-
 ```{r PCA}
 narm %>%
   select(-c(branch, bark, stem, leaves, wd1, wd2, wd3, c_min20, cs_med, c_org10, lcs_cm_min30, lcs_cm_top, lcs_cm_min20, lcs_cm_org10, totcs_mdn, cs_org10, biottl)) %>%# exclude several variables 
@@ -455,17 +492,32 @@ narm %>%
 ```{r FA}
 cssum %>%
   select(where(is.numeric)) %>%
-  fa(nfactors=2,
-     rotate = "varimax",
-     fm="pa",
-     residuals = TRUE)
+  fa(nfactors=4,
+     rotate = "oblimin",
+     fm="gls",
+     residuals = F) %>% 
+  fa.diagram()
+print(
+    cut=.3,
+    digits = 2,
+    sort = TRUE
+  )
+  
+  
+
+cssum %>%
+  select(where(is.numeric)) %>%
+  fa.parallel(
+     fa="fa"
+  )
+
 
 narm %>%
   select(where(is.numeric)) %>%
   select(-c(branch, bark, stem, leaves, wd1, wd2, wd3, c_min20, cs_med, c_org10, lcs_cm_min30, lcs_cm_top, lcs_cm_min20, lcs_cm_org10, totcs_mdn, cs_org10, biottl)) %>%
   fa(nfactors=3,
      rotate = "none",
-     fm="minres",
+     
      residuals = TRUE)
 narm1 %>%
   select(where(is.numeric)) %>%
@@ -473,9 +525,8 @@ narm1 %>%
   fa(nfactors=3,
      rotate = "varimax",
      fm="minres",
-     residuals = TRUE)
+     #residuals = TRUE)
 ```
-
 
 ```{r PCA, rm col ALL NAs}
 library(missMDA)
@@ -501,33 +552,34 @@ princomp(cssum %>%
   select(-c(branch, bark, stem, leaves, wd1, wd2, wd3, c_min20, cs_med, c_org10, lcs_cm_min30, lcs_cm_top, lcs_cm_min20, lcs_cm_org10, totcs_mdn, cs_org10, biottl))) %>% 
 ggbiplot( choices = c(1, 2), scale = 0.5, obs.scale=1, var.scale=1, ellipse = T)
 ```
- [,1]                 
- [1,] "pl"                 
- [2,] "Litter_thikness"    
- [3,] "Bulk_density"       
- [4,] "Litter_stock"       
- [5,] "Larch"              
- [6,] "Birch"              
- [7,] "Dead_stand"         
- [8,] "WD"                 
- [9,] "Aboveground_C_total"
-[10,] "E_lon"              
-[11,] "N_lat"              
-[12,] "Alt"                
-[13,] "Slope"              
-[14,] "Slope_facing"       
-[15,] "Fires_40yrs"        
-[16,] "Yrs_lst_fr"         
-[17,] "Ann_temp"           
-[18,] "Ann_prec"           
-[19,] "MBS"                
-[20,] "litter_dpt"         
-[21,] "Soil_c_stock"       
-[22,] "Soil_depth"         
-[23,] "Litter_c_stock"     
-[24,] "Soil_10_20_C"       
-[25,] "Topsoil_C"          
-[26,] "Soil_20_30_C" 
+
+[,1]\
+[1,] "pl"\
+[2,] "Litter_thikness"\
+[3,] "Bulk_density"\
+[4,] "Litter_stock"\
+[5,] "Larch"\
+[6,] "Birch"\
+[7,] "Dead_stand"\
+[8,] "WD"\
+[9,] "Aboveground_C\_total" [10,] "E_lon"\
+[11,] "N_lat"\
+[12,] "Alt"\
+[13,] "Slope"\
+[14,] "Slope_facing"\
+[15,] "Fires_40yrs"\
+[16,] "Yrs_lst_fr"\
+[17,] "Ann_temp"\
+[18,] "Ann_prec"\
+[19,] "MBS"\
+[20,] "litter_dpt"\
+[21,] "Soil_c\_stock"\
+[22,] "Soil_depth"\
+[23,] "Litter_c\_stock"\
+[24,] "Soil_10_20_C"\
+[25,] "Topsoil_C"\
+[26,] "Soil_20_30_C"
+
 ```{r PCA narm}
 sumrf %>% 
   select(where(is.numeric)) %>%
@@ -557,7 +609,6 @@ summary(PR)
 # строим биплот с указанием площадок цветом
 G_PCA<- 
 ```
-
 
 ```{r NAs handling}
 library(missMDA)
@@ -621,6 +672,7 @@ ggbiplot(pca_P_C_1_2, scale=0, groups = as.factor(P_C_1$plot), ellipse = T)
 ```
 
 #RANDOM FOREST===============
+
 ```{r}
 library(randomForest)
 #Фильтруем массив для randomForest
@@ -684,7 +736,7 @@ tab_model(gl9)
 ```
 
 ```{r GLM с оценкой предикторов VIF}
-gl3=glm(Soil_c_stock ~ ., family = gaussian, data=sumrf[, 2:26])
+gl3=glm(Soil_c_stock ~ ., family = Gamma, data=sumrf[, 2:26])
 summary(gl3)
 VIFgl3=vif(gl3) # vif() form library(car)
 # задаём размер окна куда будет помещён график
@@ -693,6 +745,95 @@ barplot(VIFgl3, main= "VIF values", horiz = TRUE, col = "burlywood3", las=1, cex
   abline(v=5, lwd=3, lty=2)# линия отсекающая ненужные предикторы
 ```
 
+```{r GLMULTI NO intaeractions Выбор самой лучшей модели для наших данных}
+library(glmulti)
+tic()
+bstsl=glmulti(Soil_c_stock ~ ., 
+       data=sumrf[, 2:26],
+       crit=aicc,
+       level=1,# 1 without, 2 - with interactions
+       method = "g", # g- is one of the possible models, see help
+       family=gaussian,
+       fitfunction = glm,
+       confsetsize = 20)
+toc()
+print(bstsl)
+plot(bstsl)
+
+library(flextable)# library for table nicer looking
+weightable(bstsl)[1:4,] %>% 
+  regulartable() %>% 
+  autofit()
+
+plot(bstsl, type = "s", cex.names=.7)
+```
+
+```{r Сравним модели:общую и лучшую+графики и оценка модели}
+library(sjPlot)
+l30=glm(Soil_c_stock ~ 1 + Litter_thikness + WD + Slope + Slope_facing + Fires_40yrs + MBS + litter_dpt + Soil_depth + Soil_10_20_C + Topsoil_C + Soil_20_30_C, family = gaussian, data=sumrf[, 2:26])# модель, отобранная на прошлом шаге
+tab_model(gl30)#, file = "model4.doc")
+gl3=glm(Soil_c_stock ~ ., family = gaussian, data=sumrf[, 2:26])
+tab_model(gl30, gl3,
+          collapse.ci = TRUE,
+          p.style = "numeric_stars")
+plot_models(gl30, vline.color = "red")
+plot_model(gl30, type = "pred", terms = "Fires_40yrs") 
+library(performance)
+check_model(gl30)
+summary(gl30)
+```
+
+```{r GLMULTI WITH interaction}
+library(glmulti)
+tic()
+bstinsl=glmulti(Soil_c_stock ~ Litter_thikness + WD + Slope + Slope_facing + Fires_40yrs + MBS + litter_dpt + Soil_depth + Soil_10_20_C + Topsoil_C + Soil_20_30_C, 
+       data=sumrf,
+       crit=aicc,
+       level=2,# 1 without, 2 - with interactions
+       method = "g", # g- is one of the possible models, see help
+       family=gaussian,
+       fitfunction = glm,
+       confsetsize = 20)
+toc()
+print(bstinsl)
+plot(bstinsl)
+
+library(flextable)# library for table nicer looking
+weightable(bstsl)[1:2,] %>% 
+  regulartable() %>% 
+  autofit() %>% 
+  flextable::save_as_docx( path = "nice_tablehere.docx")
+
+par(mar=c(1.5, 8, 2, 5))# чтобы следующий график уместился в ширину
+plot(bstinsl, type = "s", cex.names=.7)
+```
+
+```{r Сравним модели: interactions and single effect}
+gl30=glm(Soil_c_stock ~ 1 + Litter_thikness + WD + Slope + Slope_facing + Fires_40yrs + MBS + litter_dpt + Soil_depth + Soil_10_20_C + Topsoil_C + Soil_20_30_C, family = gaussian, data=sumrf[, 2:26])# модель, отобранная ,без связей
+glin30=glm(Soil_c_stock ~ 1 + Slope_facing + Slope:Litter_thikness + Fires_40yrs:Slope_facing + MBS:Slope + litter_dpt:Slope + litter_dpt:Fires_40yrs + litter_dpt:MBS + Soil_depth:Litter_thikness + Topsoil_C:Litter_thikness + Topsoil_C:WD + Topsoil_C:Soil_depth + Topsoil_C:Soil_10_20_C + Soil_20_30_C:Soil_10_20_C, family=gaussian, data=sumrf) 
+tab_model(glin30)
+tab_model(gl30)
+  
+gl3=glm(Soil_c_stock ~ ., family = gaussian, data=sumrf[, 2:26])
+tab_model(gl30, glin30,
+          collapse.ci = TRUE,
+          p.style = "numeric_stars")
+plot_models(gl30, vline.color = "red")
+plot_model(gl30, type = "pred", terms = "Fires_40yrs") 
+check_model(glin30)
+plot(check_collinearity(glin30))
+library(performance)
+plot(compare_performance(gl3, gl30, rank = T))
+plot(check_model(gl30))
+summary(gl30)
+library(report)
+report(glin30)
+report_table(glin30)
+report(sessionInfo())
+tab_df(report_table(glin30))
+tab_df(report_table(gl30))
+
+```
 
 ```{r sjPlot*********** }
 view_df(cstock, show.frq = T, show.prc = T, show.na = T)
@@ -719,13 +860,97 @@ stocsum %>%
 write.xlsx("m.xlsx")
 ```
 
+```{r CORPLOT AND MODIFICATION}
+stcor=stocsum %>%
+  mutate(WD=wd1+wd2+wd3) %>% 
+  select(-c(slyr, mxdpt, litter_dpt, wd1, wd2, wd3, lcs_cm, totcs_mn, cs, agttl)) %>%
+  pivot_wider(
+    names_from = pool, #names of new columns from factor 'type'
+    values_from = stock, # values of new columns are from numeric variable "mxdpt"
+    names_glue = "{pool}_Cst")# 
+stcor %>% 
+  distinct(Forest_Cst, .keep_all = TRUE)
+%>%  # удалим дубликаты в факторе 'pool'
+
+  dplyr::select(where(is.numeric)) %>% 
+  cor() %>% 
+  corrplot(method= "color", addCoef.col = " darkgreen", addgrid.col = "gray33", tl.cex= 0.8, tl.col = "black", number.cex = 0.5)
+
+method = "color", (cor(.)))
+```
+
+```{r CORPLOT AND MODIFICATION}
+library(tidyverse)
+
+# Function to get correletions and p.values in a "long" data frame
+corr.data = function(data) {
+  # Get correlations
+  cor.vals = cor(data)
+  # Get p-values
+  cor.p = cor.mtest(data, conf.level = 0.95)$p
+  rownames(cor.p) = rownames(cor.vals)
+  colnames(cor.p) = colnames(cor.vals)
+  cbind(rowvars=rownames(cor.vals), data.frame(cor.vals)) %>% 
+    gather(colvars, corr, -rowvars) %>% 
+    left_join(cbind(rowvars=rownames(cor.p), data.frame(cor.p)) %>% 
+                gather(colvars, p.value, -rowvars))
+}
+sumrf %>% 
+  select(where(is.numeric)) %>%
+  corr.data() %>% 
+  ggplot(aes(colvars, fct_rev(rowvars))) +
+  geom_tile(colour="grey20", aes(fill=corr), size=0.5) +
+  #geom_point(aes(size=p.value, colour=cut(abs(corr), c(0, 0.01, 0.05, 1), include.lowest=TRUE)), pch=15) +
+  geom_text(aes(label=sprintf("%1.2f", corr)), position=position_nudge(y=0.2), 
+            size=3, colour="black") +
+  geom_text(aes(label=paste0("(",sprintf("%1.2f", p.value),")")), position=position_nudge(y=-0.2), 
+            size=2.5, colour="black") +
+  scale_fill_gradient2(low="red", mid="yellow2", high="blue", midpoint=0, limits=c(-1,1)) +
+  scale_size_continuous(range=c(7,12)) +
+  labs(x="",y="") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))#+
+  coord_fixed()
+
+
+```
+
 ```{r Строим графики распределений для числовых переменных в обобщённой таблице}
 sumrf%>% 
   select(where(is.numeric)) %>% # выбираем все числовые
   melt() %>%# переводим в длинный формат таблицы было 42 строки и 26 колонок, стало 1050 строк и 2 колонки
   ggplot(aes(x=value))+
   stat_density()+# тип графика плотность распределния
-  facet_wrap(~variable, scales = "free")#
+  facet_wrap(~variable, scales = "free")
+
+ggsave("figures/dstrbn.png", width = 10, height=8)#
 ```
 
+```{r Decision tree}
+library(rpart)
+library(partykit)
+library(ggplot2)
+library(ggparty)
+library(rpart.plot)
 
+#Decision Tree Analysis(DCA)
+#Взял модель, которую выбрал на этапе gmulti как самую адекватную.
+Soiltree<-rpart(Soil_c_stock ~ Litter_thikness + WD + Slope + Slope_facing + Fires_40yrs + MBS + litter_dpt + Soil_depth, data=sumrf)
+Soiltree$variable.importance#
+printcp(Soiltree)
+plotcp(Soiltree)
+plot(as.party(Soiltree),tp_args = list(id=FALSE))
+#Полная модель без фактора "площадка".
+Soiltrint<-rpart(Soil_c_stock ~ ., data = subset(sumrf, select = -pl))
+Soiltrint$variable.importance
+printcp(Soiltrint)
+plotcp(Soiltrint)
+plot(as.party(Soiltrint),tp_args = list(id=FALSE))
+
+```
+
+#============SEM=========================
+
+```{r SEM}
+
+```
